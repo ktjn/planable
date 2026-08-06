@@ -2303,7 +2303,7 @@ it('renders day columns as drop targets and task rows as drag sources', async ()
 
   render(<WeeklyPlanView />);
   const row = await screen.findByText('Draggable');
-  expect(row).toHaveAttribute('draggable', undefined); // dnd-kit uses pointer events, not native HTML5 DnD
+  expect(row).not.toHaveAttribute('draggable'); // dnd-kit uses pointer events, not native HTML5 DnD
   expect(row.closest('[data-dnd-draggable]')).toBeInTheDocument();
 });
 ```
