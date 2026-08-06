@@ -9,24 +9,38 @@ vi.mock('../db/db', async () => {
 import { exportData, importData } from './importExport';
 import { createProject } from '../db/repositories/projects';
 import { createContainer } from '../db/repositories/containers';
-import { createTask } from '../db/repositories/tasks';
+import { createTask, setTaskCompleted } from '../db/repositories/tasks';
 import { createLabel } from '../db/repositories/labels';
+import { setKanbanStatus, addToWeek, setWeeklyDay } from '../db/repositories/taskMembership';
 import { db } from '../db/db';
 
 describe('import/export', () => {
-  it('round-trips projects, containers, tasks, and labels', async () => {
+  it('round-trips projects, containers, tasks, and labels, including kanban/weekly/completedDate', async () => {
     const project = await createProject('Alpha');
     const container = await createContainer(project.id, 'Backlog');
     const label = await createLabel('Security', '#ff0000');
-    await createTask({
+    const created = await createTask({
       title: 'Exportable',
       labels: [label.id],
       projectId: project.id,
       containerId: container.id,
     });
 
+    // setKanbanStatus('Doing') keeps kanban.status at 'Doing' without touching completed.
+    await setKanbanStatus(created.id, 'Doing');
+    await addToWeek(created.id, 'x');
+    await setWeeklyDay(created.id, 'Tue');
+    // repeatWeekly isn't settable via a repository function yet (Phase 1 doesn't
+    // act on it), so patch it directly on the record to exercise the field.
+    await db.tasks.update(created.id, { weekly: { weekId: 'x', day: 'Tue', repeatWeekly: true } });
+    await setTaskCompleted(created.id, true);
+
     const exported = await exportData();
-    expect(exported.tasks.find((t) => t.title === 'Exportable')).toBeDefined();
+    const exportedTask = exported.tasks.find((t) => t.title === 'Exportable');
+    expect(exportedTask).toBeDefined();
+    expect(exportedTask?.kanban).toEqual({ status: 'Doing' });
+    expect(exportedTask?.weekly).toEqual({ weekId: 'x', day: 'Tue', repeatWeekly: true });
+    expect(exportedTask?.completedDate).not.toBeNull();
 
     await db.tasks.clear();
     await db.containers.clear();
@@ -40,5 +54,8 @@ describe('import/export', () => {
     expect(await db.labels.get(label.id)).toEqual(label);
     const task = await db.tasks.filter((t) => t.title === 'Exportable').first();
     expect(task?.labels).toEqual([label.id]);
+    expect(task?.kanban).toEqual({ status: 'Doing' });
+    expect(task?.weekly).toEqual({ weekId: 'x', day: 'Tue', repeatWeekly: true });
+    expect(task?.completedDate).toEqual(exportedTask?.completedDate);
   });
 });
