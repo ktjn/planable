@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { setTaskCompleted } from '../../db/repositories/tasks';
-import { addToWeek } from '../../db/repositories/taskMembership';
+import { addToWeek, addToKanban } from '../../db/repositories/taskMembership';
 import { getCurrentWeekId } from '../../lib/week';
 import type { Task } from '../../db/schema';
 import { TaskDialog } from './TaskDialog';
@@ -28,6 +28,7 @@ export function TaskCard({ task }: { task: Task }) {
         {task.title}
       </button>
       <button onClick={() => void addToWeek(task.id, getCurrentWeekId())}>Add to this week</button>
+      <button onClick={() => void addToKanban(task.id)}>Add to Kanban</button>
       {editing && (
         <TaskDialog
           mode="edit"
