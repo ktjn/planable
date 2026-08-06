@@ -14,6 +14,6 @@ describe('LabelManager', () => {
     render(<LabelManager />);
     await userEvent.type(screen.getByPlaceholderText('Label name'), 'Security');
     await userEvent.click(screen.getByText('Add label'));
-    expect(await screen.findByText('Security')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Security')).toBeInTheDocument();
   });
 });

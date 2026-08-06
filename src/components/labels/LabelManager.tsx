@@ -31,7 +31,6 @@ export function LabelManager() {
         {labels.map((label) => (
           <li key={label.id} className="flex items-center gap-2 py-1">
             <span style={{ backgroundColor: label.color }} className="inline-block h-3 w-3 rounded-full" />
-            <span>{label.name}</span>
             <input
               defaultValue={label.name}
               onBlur={(e) => {
