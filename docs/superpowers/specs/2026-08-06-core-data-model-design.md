@@ -171,6 +171,14 @@ analytics). The Inbox pseudo-project and independent Kanban/Weekly
 membership are part of Phase 1, since they're foundational to the data
 model rather than additive features.
 
+## Technology Stack (unchanged, restated for reference)
+
+- **Frontend:** React, TypeScript, Vite, Tailwind CSS, shadcn/ui, Base UI,
+  Lucide React
+- **Storage:** IndexedDB, Dexie
+- **Drag & Drop:** @dnd-kit
+- **Deployment:** GitHub Pages (static, no backend, no auth)
+
 ## Non-Goals (unchanged)
 
 Collaboration, authentication, comments, attachments, notifications,
