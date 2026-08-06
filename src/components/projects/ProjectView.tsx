@@ -1,11 +1,19 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { listContainersByProject, createContainer } from '../../db/repositories/containers';
+import { updateTask } from '../../db/repositories/tasks';
 import { ContainerColumn } from './ContainerColumn';
 
 export function ProjectView({ projectId }: { projectId: string }) {
   const containers = useLiveQuery(() => listContainersByProject(projectId), [projectId], []);
   const [newName, setNewName] = useState('');
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over) return;
+    await updateTask(String(active.id), { containerId: String(over.id), projectId });
+  }
 
   return (
     <div>
@@ -26,11 +34,13 @@ export function ProjectView({ projectId }: { projectId: string }) {
           Add container
         </button>
       </div>
-      <div className="flex gap-4">
-        {containers.map((container) => (
-          <ContainerColumn key={container.id} container={container} />
-        ))}
-      </div>
+      <DndContext onDragEnd={handleDragEnd}>
+        <div className="flex gap-4">
+          {containers.map((container) => (
+            <ContainerColumn key={container.id} container={container} />
+          ))}
+        </div>
+      </DndContext>
     </div>
   );
 }

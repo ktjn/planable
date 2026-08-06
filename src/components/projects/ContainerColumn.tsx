@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useDroppable } from '@dnd-kit/core';
 import { listTasksByContainer } from '../../db/repositories/tasks';
 import { renameContainer, deleteContainer } from '../../db/repositories/containers';
 import type { Container } from '../../db/schema';
@@ -8,9 +9,10 @@ import { TaskDialog } from './TaskDialog';
 
 export function ContainerColumn({ container }: { container: Container }) {
   const tasks = useLiveQuery(() => listTasksByContainer(container.id), [container.id], []);
+  const { setNodeRef } = useDroppable({ id: container.id });
 
   return (
-    <div className="w-64 shrink-0 rounded border border-gray-200 p-2">
+    <div ref={setNodeRef} data-dnd-droppable className="w-64 shrink-0 rounded border border-gray-200 p-2">
       <div className="mb-2 flex items-center justify-between">
         <input
           className="font-medium"
