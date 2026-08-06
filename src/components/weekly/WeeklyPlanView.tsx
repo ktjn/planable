@@ -1,4 +1,12 @@
-import { DndContext, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core';
+import {
+  DndContext,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { db } from '../../db/db';
@@ -47,6 +55,7 @@ export function WeeklyPlanView() {
     [],
   );
   const [pickerOpen, setPickerOpen] = useState(false);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -58,7 +67,7 @@ export function WeeklyPlanView() {
     <div>
       <button onClick={() => setPickerOpen(true)}>+ Add existing task</button>
       {pickerOpen && <AddToWeekPicker onClose={() => setPickerOpen(false)} />}
-      <DndContext onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="mt-4 flex gap-4">
           {COLUMNS.map((day) => (
             <DayColumn

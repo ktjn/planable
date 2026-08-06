@@ -1,4 +1,12 @@
-import { DndContext, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core';
+import {
+  DndContext,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { db } from '../../db/db';
@@ -41,6 +49,7 @@ function StatusColumn({ status, titles }: { status: KanbanStatus; titles: { id: 
 export function KanbanView() {
   const tasks = useLiveQuery(() => db.tasks.filter((t) => t.kanban !== null).toArray(), [], []);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -52,7 +61,7 @@ export function KanbanView() {
     <div>
       <button onClick={() => setPickerOpen(true)}>+ Add existing task</button>
       {pickerOpen && <AddToKanbanPicker onClose={() => setPickerOpen(false)} />}
-      <DndContext onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="mt-4 flex gap-4">
           {COLUMNS.map((status) => (
             <StatusColumn
