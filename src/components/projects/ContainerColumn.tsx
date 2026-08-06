@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { listTasksByContainer } from '../../db/repositories/tasks';
 import { renameContainer, deleteContainer } from '../../db/repositories/containers';
 import type { Container } from '../../db/schema';
+import { TaskCard } from './TaskCard';
+import { TaskDialog } from './TaskDialog';
 
 export function ContainerColumn({ container }: { container: Container }) {
   const tasks = useLiveQuery(() => listTasksByContainer(container.id), [container.id], []);
@@ -27,11 +30,24 @@ export function ContainerColumn({ container }: { container: Container }) {
       </div>
       <ul>
         {tasks.map((task) => (
-          <li key={task.id} className="py-1">
-            {task.title}
+          <li key={task.id}>
+            <TaskCard task={task} />
           </li>
         ))}
       </ul>
+      <AddTaskButton projectId={container.projectId} containerId={container.id} />
     </div>
+  );
+}
+
+function AddTaskButton({ projectId, containerId }: { projectId: string; containerId: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button onClick={() => setOpen(true)}>+ Add task</button>
+      {open && (
+        <TaskDialog mode="create" projectId={projectId} containerId={containerId} onClose={() => setOpen(false)} />
+      )}
+    </>
   );
 }
