@@ -3,6 +3,7 @@ import { NavTabs, type ActiveView } from './components/layout/NavTabs';
 import { ProjectView } from './components/projects/ProjectView';
 import { LabelManager } from './components/labels/LabelManager';
 import { WeeklyPlanView } from './components/weekly/WeeklyPlanView';
+import { KanbanView } from './components/kanban/KanbanView';
 
 export default function App() {
   const [active, setActive] = useState<ActiveView>({ kind: 'weekly' });
@@ -12,7 +13,7 @@ export default function App() {
       <NavTabs active={active} onSelect={setActive} />
       <main className="p-4">
         {active.kind === 'weekly' && <WeeklyPlanView />}
-        {active.kind === 'kanban' && <div>Kanban view placeholder</div>}
+        {active.kind === 'kanban' && <KanbanView />}
         {active.kind === 'labels' && <LabelManager />}
         {active.kind === 'project' && <ProjectView projectId={active.projectId} />}
       </main>
