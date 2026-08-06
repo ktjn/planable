@@ -30,8 +30,22 @@ describe('label repository', () => {
       weekly: null,
     });
 
+    await db.tasks.add({
+      id: 't2',
+      title: 'Task 2',
+      description: '',
+      labels: [label.id],
+      projectId: INBOX_PROJECT_ID,
+      containerId: INBOX_CONTAINER_ID,
+      completed: false,
+      completedDate: null,
+      kanban: null,
+      weekly: null,
+    });
+
     await deleteLabel(label.id);
     expect((await listLabels()).find((l) => l.id === label.id)).toBeUndefined();
     expect((await db.tasks.get('t1'))?.labels).toEqual([]);
+    expect((await db.tasks.get('t2'))?.labels).toEqual([]);
   });
 });
