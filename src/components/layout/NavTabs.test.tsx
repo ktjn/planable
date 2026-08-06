@@ -38,4 +38,35 @@ describe('NavTabs', () => {
       expect.objectContaining({ kind: 'project', projectId: expect.any(String) }),
     );
   });
+
+  it('redirects to Weekly Plan when the active project is deleted', async () => {
+    const project = await createProject('Deletable');
+    const onSelect = vi.fn();
+    render(<NavTabs active={{ kind: 'project', projectId: project.id }} onSelect={onSelect} />);
+
+    await userEvent.click(await screen.findByLabelText(`Delete ${project.name}`));
+
+    expect(onSelect).toHaveBeenCalledWith({ kind: 'weekly' });
+  });
+
+  it('does not redirect when deleting a project that is not currently active', async () => {
+    const project = await createProject('Also deletable');
+    const onSelect = vi.fn();
+    render(<NavTabs active={{ kind: 'kanban' }} onSelect={onSelect} />);
+
+    await userEvent.click(await screen.findByLabelText(`Delete ${project.name}`));
+
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('never shows rename or delete controls for Inbox', async () => {
+    const onSelect = vi.fn();
+    render(<NavTabs active={{ kind: 'weekly' }} onSelect={onSelect} />);
+
+    const inboxTab = await screen.findByText('Inbox');
+    expect(screen.queryByLabelText('Delete Inbox')).not.toBeInTheDocument();
+
+    await userEvent.dblClick(inboxTab);
+    expect(screen.queryByDisplayValue('Inbox')).not.toBeInTheDocument();
+  });
 });

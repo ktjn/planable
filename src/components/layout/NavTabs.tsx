@@ -99,7 +99,12 @@ export function NavTabs({
               {!isInbox && (
                 <button
                   aria-label={`Delete ${project.name}`}
-                  onClick={() => fireAndForget(deleteProject(project.id))}
+                  onClick={() => {
+                    fireAndForget(deleteProject(project.id));
+                    if (active.kind === 'project' && active.projectId === project.id) {
+                      onSelect({ kind: 'weekly' });
+                    }
+                  }}
                 >
                   ×
                 </button>
