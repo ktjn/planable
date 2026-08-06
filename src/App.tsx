@@ -4,6 +4,7 @@ import { ProjectView } from './components/projects/ProjectView';
 import { LabelManager } from './components/labels/LabelManager';
 import { WeeklyPlanView } from './components/weekly/WeeklyPlanView';
 import { KanbanView } from './components/kanban/KanbanView';
+import { ImportExport } from './components/settings/ImportExport';
 
 export default function App() {
   const [active, setActive] = useState<ActiveView>({ kind: 'weekly' });
@@ -15,6 +16,7 @@ export default function App() {
         {active.kind === 'weekly' && <WeeklyPlanView />}
         {active.kind === 'kanban' && <KanbanView />}
         {active.kind === 'labels' && <LabelManager />}
+        {active.kind === 'settings' && <ImportExport />}
         {active.kind === 'project' && <ProjectView projectId={active.projectId} />}
       </main>
     </div>

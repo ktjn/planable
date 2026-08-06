@@ -6,6 +6,7 @@ export type ActiveView =
   | { kind: 'weekly' }
   | { kind: 'kanban' }
   | { kind: 'labels' }
+  | { kind: 'settings' }
   | { kind: 'project'; projectId: string };
 
 export function NavTabs({
@@ -21,13 +22,19 @@ export function NavTabs({
 
   return (
     <nav className="flex gap-2 border-b border-gray-200 px-4">
-      {(['weekly', 'kanban', 'labels'] as const).map((kind) => (
+      {(['weekly', 'kanban', 'labels', 'settings'] as const).map((kind) => (
         <button
           key={kind}
           className={`px-3 py-2 ${isActive({ kind }) ? 'border-b-2 border-blue-600 font-medium' : ''}`}
           onClick={() => onSelect({ kind })}
         >
-          {kind === 'weekly' ? 'Weekly Plan' : kind === 'kanban' ? 'Kanban' : 'Labels'}
+          {kind === 'weekly'
+            ? 'Weekly Plan'
+            : kind === 'kanban'
+              ? 'Kanban'
+              : kind === 'labels'
+                ? 'Labels'
+                : 'Settings'}
         </button>
       ))}
       {projects
