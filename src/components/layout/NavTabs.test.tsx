@@ -25,4 +25,17 @@ describe('NavTabs', () => {
     await userEvent.click(screen.getByText('Kanban'));
     expect(onSelect).toHaveBeenCalledWith({ kind: 'kanban' });
   });
+
+  it('creates a project via the "+" affordance and it becomes selectable', async () => {
+    const onSelect = vi.fn();
+    render(<NavTabs active={{ kind: 'weekly' }} onSelect={onSelect} />);
+
+    await userEvent.click(screen.getByLabelText('Add project'));
+    await userEvent.type(screen.getByPlaceholderText('New project name'), 'New Project{Enter}');
+
+    expect(await screen.findByText('New Project')).toBeInTheDocument();
+    expect(onSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'project', projectId: expect.any(String) }),
+    );
+  });
 });
