@@ -48,8 +48,11 @@ optional, additive states — not fields that always apply.
 - `labels: LabelId[]`
 - `projectId`, `containerId`
 - `completed: boolean`
-- `completedDate: Date | null` — set when `completed` transitions to
-  `true`, cleared if uncompleted
+- `completedDate: number | null` (epoch milliseconds, i.e. `Date.now()`)
+  — set when `completed` transitions to `true`, cleared if uncompleted.
+  A number rather than a `Date` object so it round-trips through
+  `JSON.stringify`/`JSON.parse` without revival logic, needed for the
+  plain JSON import/export described below.
 - `kanban: { status: 'Todo' | 'Doing' | 'Blocked' | 'Done' } | null`
   — presence means the task is on the Kanban board
 - `weekly: { weekId: string, day: 'Unplanned' | 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri', repeatWeekly: boolean } | null`
