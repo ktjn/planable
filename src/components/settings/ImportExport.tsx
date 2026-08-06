@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { Download, Upload } from 'lucide-react';
 import { exportData, importData, type PlanableExport } from '../../lib/importExport';
+import { Button } from '../../components/ui/button';
 
 export function ImportExport() {
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleExport() {
     const data = await exportData();
@@ -37,13 +40,26 @@ export function ImportExport() {
   }
 
   return (
-    <div>
-      <button onClick={handleExport}>Export</button>
-      <label>
-        Import
-        <input type="file" accept="application/json" onChange={handleImport} />
-      </label>
-      {error && <p role="alert">{error}</p>}
+    <div className="flex flex-col items-start gap-3">
+      <div className="flex items-center gap-2">
+        <Button onClick={handleExport}>
+          <Download />
+          Export
+        </Button>
+        <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+          <Upload />
+          Import
+        </Button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/json"
+          aria-label="Import"
+          onChange={handleImport}
+          className="hidden"
+        />
+      </div>
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     </div>
   );
 }

@@ -42,3 +42,18 @@ export interface Task {
   kanban: KanbanMembership | null;
   weekly: WeeklyMembership | null;
 }
+
+export interface WeekTemplate {
+  id: string;
+  taskId: string;
+  title: string;
+  description: string;
+  labels: string[];
+  projectId: string;
+  containerId: string;
+}
+
+export interface Setting {
+  key: string;
+  value: unknown;
+}

@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { DndContext } from '@dnd-kit/core';
+import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
 
 vi.mock('../../db/db', async () => {
   const { PlanableDB } = await vi.importActual<typeof import('../../db/db')>('../../db/db');
@@ -20,7 +21,9 @@ describe('ContainerColumn drag-and-drop', () => {
 
     render(
       <DndContext onDragEnd={() => {}}>
-        <ContainerColumn container={container} />
+        <SortableContext items={[container.id]} strategy={rectSortingStrategy}>
+          <ContainerColumn container={container} />
+        </SortableContext>
       </DndContext>,
     );
 

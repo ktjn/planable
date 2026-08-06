@@ -14,6 +14,8 @@ import { db } from '../../db/db';
 import { setKanbanStatus } from '../../db/repositories/taskMembership';
 import { fireAndForget } from '../../lib/fireAndForget';
 import type { KanbanStatus } from '../../db/schema';
+import { Plus } from 'lucide-react';
+import { Button } from '../../components/ui/button';
 import { AddToKanbanPicker } from './AddToKanbanPicker';
 
 const COLUMNS: KanbanStatus[] = ['Todo', 'Doing', 'Blocked', 'Done'];
@@ -64,7 +66,10 @@ export function KanbanView() {
 
   return (
     <div>
-      <button onClick={() => setPickerOpen(true)}>+ Add existing task</button>
+      <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
+        <Plus />
+        Add existing task
+      </Button>
       {pickerOpen && <AddToKanbanPicker onClose={() => setPickerOpen(false)} />}
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="mt-4 flex gap-4">
