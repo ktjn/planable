@@ -35,3 +35,23 @@ describe('TaskCard membership badges', () => {
     expect(screen.queryByText(/Week:/)).not.toBeInTheDocument();
   });
 });
+
+describe('TaskCard add-to buttons', () => {
+  it('shows both add buttons when the task has no membership', () => {
+    render(<TaskCard task={{ ...baseTask, kanban: null, weekly: null }} />);
+    expect(screen.getByText('Add to this week')).toBeInTheDocument();
+    expect(screen.getByText('Add to Kanban')).toBeInTheDocument();
+  });
+
+  it('hides "Add to this week" when the task already has weekly membership', () => {
+    render(<TaskCard task={{ ...baseTask, kanban: null }} />);
+    expect(screen.queryByText('Add to this week')).not.toBeInTheDocument();
+    expect(screen.getByText('Add to Kanban')).toBeInTheDocument();
+  });
+
+  it('hides "Add to Kanban" when the task already has kanban membership', () => {
+    render(<TaskCard task={{ ...baseTask, weekly: null }} />);
+    expect(screen.queryByText('Add to Kanban')).not.toBeInTheDocument();
+    expect(screen.getByText('Add to this week')).toBeInTheDocument();
+  });
+});
