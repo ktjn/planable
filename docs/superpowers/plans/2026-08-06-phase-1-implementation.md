@@ -28,14 +28,29 @@
 - Every repository module gets unit tests using `fake-indexeddb` (no real
   browser needed). Every interactive component gets a
   `@testing-library/react` test covering its primary interaction.
+- **Amendment (post-Task-1):** dependencies are pinned to the latest
+  version available at install time rather than the versions originally
+  drafted below — Task 1 was re-run against latest and the versions in its
+  code block are now historical, not authoritative. Tailwind CSS landed on
+  v4 during Task 1, which is CSS-first and has no `tailwind.config.js` /
+  `postcss.config.js`: Tailwind is wired via the `@tailwindcss/vite` plugin
+  in `vite.config.ts`/`vitest.config.ts`, and `src/index.css` is just
+  `@import "tailwindcss";`. `tsconfig.json`'s `types` array also needs
+  `"vite/client"` (ahead of `"vitest/globals"`) so CSS side-effect imports
+  type-check. A root `.gitignore` (`node_modules/`, `dist/`, `.superpowers/`,
+  `*.local`, `*.tsbuildinfo`) and `.github/dependabot.yml` (weekly npm +
+  github-actions updates) were added as part of Task 1 and are not
+  otherwise mentioned in the per-task file lists below. None of this
+  changes any task's produced interfaces (npm scripts, component APIs,
+  repository function signatures) — only how the toolchain is wired.
 
 ---
 
 ## File Structure
 
 ```
-package.json, vite.config.ts, tsconfig.json, tailwind.config.js,
-postcss.config.js, index.html, vitest.config.ts, src/test-setup.ts
+package.json, vite.config.ts, tsconfig.json, index.html, vitest.config.ts,
+src/test-setup.ts, .gitignore, .github/dependabot.yml
 src/main.tsx                        - app entry
 src/App.tsx                         - top-level layout, view switching
 src/db/schema.ts                    - Project/Container/Task/Label types
