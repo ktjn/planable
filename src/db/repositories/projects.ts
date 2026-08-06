@@ -28,9 +28,11 @@ export async function deleteProject(id: string): Promise<void> {
   if (id === INBOX_PROJECT_ID) {
     throw new Error('Cannot delete the Inbox project');
   }
-  const containers = await listContainersByProject(id);
-  for (const container of containers) {
-    await deleteContainer(container.id);
-  }
-  await db.projects.delete(id);
+  await db.transaction('rw', db.projects, db.containers, db.tasks, async () => {
+    const containers = await listContainersByProject(id);
+    for (const container of containers) {
+      await deleteContainer(container.id);
+    }
+    await db.projects.delete(id);
+  });
 }
