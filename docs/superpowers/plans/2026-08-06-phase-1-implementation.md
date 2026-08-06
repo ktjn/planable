@@ -1328,10 +1328,15 @@ describe('ProjectView', () => {
     await userEvent.type(screen.getByPlaceholderText('New container name'), 'Backlog');
     await userEvent.click(screen.getByText('Add container'));
 
-    expect(await screen.findByText('Backlog')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Backlog')).toBeInTheDocument();
   });
 });
 ```
+
+Note: `findByDisplayValue`, not `findByText` — the container name renders
+inside an editable `<input defaultValue={container.name} />` in
+`ContainerColumn`, not as plain text content, so `findByText` cannot match
+it.
 
 - [ ] **Step 2: Run test to verify it fails**
 
