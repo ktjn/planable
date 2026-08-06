@@ -27,6 +27,12 @@ export function TaskCard({ task }: { task: Task }) {
       <button className="flex-1 text-left" onClick={() => setEditing(true)}>
         {task.title}
       </button>
+      {task.kanban && (
+        <span className="rounded bg-gray-100 px-1 text-xs">Kanban: {task.kanban.status}</span>
+      )}
+      {task.weekly && (
+        <span className="rounded bg-gray-100 px-1 text-xs">Week: {task.weekly.day}</span>
+      )}
       <button onClick={() => void addToWeek(task.id, getCurrentWeekId())}>Add to this week</button>
       <button onClick={() => void addToKanban(task.id)}>Add to Kanban</button>
       {editing && (
