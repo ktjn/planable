@@ -16,6 +16,15 @@ export class PlanableDB extends Dexie {
       tasks: 'id, projectId, containerId, completed',
       labels: 'id, name',
     });
+    // v2 drops the `completed` index: IndexedDB doesn't support boolean index
+    // keys, so it was silently excluded from every record's index anyway.
+    // No data migration needed — only the index declaration changes.
+    this.version(2).stores({
+      projects: 'id, order',
+      containers: 'id, projectId, order',
+      tasks: 'id, projectId, containerId',
+      labels: 'id, name',
+    });
     this.on('populate', () => {
       this.projects.add(INBOX_PROJECT);
       this.containers.add(INBOX_CONTAINER);
