@@ -3053,7 +3053,10 @@ git commit -m "feat: add JSON import/export with Inbox re-seeding"
 Run `npm run dev`, open the app, and verify by hand (drag-and-drop can't be
 asserted in jsdom, per Tasks 11/16/19):
 
-1. Create a project, a container, and a task; edit and delete it.
+1. Create a project via NavTabs' "+" affordance, rename it via double-click
+   on its tab, then create a container and a task inside it; edit and
+   delete the task. Confirm the project's rename/delete controls don't
+   appear on the Inbox tab.
 2. Drag the task between two containers in the Project view.
 3. Add the task to the current week via its card button; drag it between
    day columns in Weekly Plan.
@@ -3063,3 +3066,11 @@ asserted in jsdom, per Tasks 11/16/19):
    task no longer shows it.
 6. Export JSON, clear IndexedDB via devtools, reload, import the file back,
    confirm everything reappears including Inbox.
+7. In each of the three views (Project, Weekly Plan, Kanban), click a
+   task's checkbox / "Add to this week" / "Add to Kanban" button with a
+   plain click (no pointer movement) and confirm the click registers as a
+   click — the action fires and the task does not get dropped into a
+   different container/day/status as if it had been dragged.
+8. Open a task's edit dialog and select text (click-drag to highlight)
+   inside its description textarea; confirm this text-selection gesture
+   does not move the task to a different container underneath the dialog.
