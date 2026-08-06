@@ -37,13 +37,23 @@ describe('task membership helpers', () => {
     expect(done?.kanban).toEqual({ status: 'Done' });
     expect(done?.completed).toBe(true);
     expect(done?.completedDate).not.toBeNull();
+
+    // Verify moving out of Done does not un-complete the task
+    await setKanbanStatus(task.id, 'Doing');
+    const afterExit = await db.tasks.get(task.id);
+    expect(afterExit?.kanban).toEqual({ status: 'Doing' });
+    expect(afterExit?.completed).toBe(true);
+    expect(afterExit?.completedDate).not.toBeNull();
   });
 
   it('removes kanban membership without touching weekly or completed', async () => {
     const task = await makeTask();
     await addToKanban(task.id);
     await removeFromKanban(task.id);
-    expect((await db.tasks.get(task.id))?.kanban).toBeNull();
+    const after = await db.tasks.get(task.id);
+    expect(after?.kanban).toBeNull();
+    expect(after?.completed).toBe(false);
+    expect(after?.weekly).toBeNull();
   });
 
   it('adds to week with Unplanned default, updates day, and can be removed', async () => {
