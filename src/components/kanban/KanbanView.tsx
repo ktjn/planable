@@ -1,5 +1,6 @@
 import {
   DndContext,
+  KeyboardSensor,
   PointerSensor,
   useDraggable,
   useDroppable,
@@ -49,7 +50,10 @@ function StatusColumn({ status, titles }: { status: KanbanStatus; titles: { id: 
 export function KanbanView() {
   const tasks = useLiveQuery(() => db.tasks.filter((t) => t.kanban !== null).toArray(), [], []);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor),
+  );
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
