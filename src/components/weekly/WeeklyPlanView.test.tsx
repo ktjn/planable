@@ -23,4 +23,14 @@ describe('WeeklyPlanView', () => {
     expect(await screen.findByText('Plan work')).toBeInTheDocument();
     expect(screen.getByText('Tue').closest('section')).toContainElement(screen.getByText('Plan work'));
   });
+
+  it('renders day columns as drop targets and task rows as drag sources', async () => {
+    const task = await createTask({ title: 'Draggable', projectId: INBOX_PROJECT_ID, containerId: INBOX_CONTAINER_ID });
+    await addToWeek(task.id, getCurrentWeekId());
+
+    render(<WeeklyPlanView />);
+    const row = await screen.findByText('Draggable');
+    expect(row).not.toHaveAttribute('draggable'); // dnd-kit uses pointer events, not native HTML5 DnD
+    expect(row.closest('[data-dnd-draggable]')).toBeInTheDocument();
+  });
 });
