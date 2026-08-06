@@ -2153,7 +2153,7 @@ git commit -m "feat: add weekly plan view with day columns"
 
 ```tsx
 // src/components/weekly/AddToWeekPicker.test.tsx
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 
@@ -2177,7 +2177,7 @@ describe('AddToWeekPicker', () => {
     await userEvent.type(screen.getByPlaceholderText('Search tasks'), 'Findable');
     await userEvent.click(await screen.findByText('Findable task'));
 
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
     const task = await db.tasks.filter((t) => t.title === 'Findable task').first();
     expect(task?.weekly?.weekId).toBe(getCurrentWeekId());
     expect(task?.weekly?.day).toBe('Unplanned');
@@ -2528,7 +2528,7 @@ git commit -m "feat: add global kanban view with status columns"
 
 ```tsx
 // src/components/kanban/AddToKanbanPicker.test.tsx
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 
@@ -2551,12 +2551,17 @@ describe('AddToKanbanPicker', () => {
     await userEvent.type(screen.getByPlaceholderText('Search tasks'), 'Board');
     await userEvent.click(await screen.findByText('Board me'));
 
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
     const task = await db.tasks.filter((t) => t.title === 'Board me').first();
     expect(task?.kanban).toEqual({ status: 'Todo' });
   });
 });
 ```
+
+Note: the `onClose` assertion is wrapped in `waitFor` — the click handler
+awaits a real IndexedDB write (`addToKanban`) before calling `onClose`, so
+asserting immediately after `userEvent.click` is flaky (same issue as
+Task 15's `AddToWeekPicker` test).
 
 - [ ] **Step 2: Run test to verify it fails**
 
