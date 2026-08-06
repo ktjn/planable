@@ -10,6 +10,7 @@ import {
 } from '@dnd-kit/core';
 import { listContainersByProject, createContainer } from '../../db/repositories/containers';
 import { updateTask } from '../../db/repositories/tasks';
+import { fireAndForget } from '../../lib/fireAndForget';
 import { ContainerColumn } from './ContainerColumn';
 
 export function ProjectView({ projectId }: { projectId: string }) {
@@ -20,10 +21,10 @@ export function ProjectView({ projectId }: { projectId: string }) {
     useSensor(KeyboardSensor),
   );
 
-  async function handleDragEnd(event: DragEndEvent) {
+  function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over) return;
-    await updateTask(String(active.id), { containerId: String(over.id), projectId });
+    fireAndForget(updateTask(String(active.id), { containerId: String(over.id), projectId }));
   }
 
   return (

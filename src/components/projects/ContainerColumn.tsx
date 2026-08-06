@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useDroppable } from '@dnd-kit/core';
 import { listTasksByContainer } from '../../db/repositories/tasks';
 import { renameContainer, deleteContainer } from '../../db/repositories/containers';
+import { fireAndForget } from '../../lib/fireAndForget';
 import type { Container } from '../../db/schema';
 import { TaskCard } from './TaskCard';
 import { TaskDialog } from './TaskDialog';
@@ -19,13 +20,13 @@ export function ContainerColumn({ container }: { container: Container }) {
           defaultValue={container.name}
           onBlur={(e) => {
             if (e.target.value.trim() && e.target.value !== container.name) {
-              void renameContainer(container.id, e.target.value.trim());
+              fireAndForget(renameContainer(container.id, e.target.value.trim()));
             }
           }}
         />
         <button
           aria-label={`Delete ${container.name}`}
-          onClick={() => void deleteContainer(container.id)}
+          onClick={() => fireAndForget(deleteContainer(container.id))}
         >
           ×
         </button>

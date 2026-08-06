@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { listLabels, createLabel, updateLabel, deleteLabel } from '../../db/repositories/labels';
+import { fireAndForget } from '../../lib/fireAndForget';
 
 export function LabelManager() {
   const labels = useLiveQuery(listLabels, [], []);
@@ -35,11 +36,11 @@ export function LabelManager() {
               defaultValue={label.name}
               onBlur={(e) => {
                 if (e.target.value.trim() && e.target.value !== label.name) {
-                  void updateLabel(label.id, { name: e.target.value.trim() });
+                  fireAndForget(updateLabel(label.id, { name: e.target.value.trim() }));
                 }
               }}
             />
-            <button onClick={() => void deleteLabel(label.id)}>Delete</button>
+            <button onClick={() => fireAndForget(deleteLabel(label.id))}>Delete</button>
           </li>
         ))}
       </ul>

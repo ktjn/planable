@@ -13,6 +13,7 @@ import { useState } from 'react';
 import { db } from '../../db/db';
 import { getCurrentWeekId } from '../../lib/week';
 import { setWeeklyDay } from '../../db/repositories/taskMembership';
+import { fireAndForget } from '../../lib/fireAndForget';
 import type { WeekDay } from '../../db/schema';
 import { AddToWeekPicker } from './AddToWeekPicker';
 
@@ -61,10 +62,10 @@ export function WeeklyPlanView() {
     useSensor(KeyboardSensor),
   );
 
-  async function handleDragEnd(event: DragEndEvent) {
+  function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over) return;
-    await setWeeklyDay(String(active.id), over.id as WeekDay);
+    fireAndForget(setWeeklyDay(String(active.id), over.id as WeekDay));
   }
 
   return (

@@ -12,6 +12,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { db } from '../../db/db';
 import { setKanbanStatus } from '../../db/repositories/taskMembership';
+import { fireAndForget } from '../../lib/fireAndForget';
 import type { KanbanStatus } from '../../db/schema';
 import { AddToKanbanPicker } from './AddToKanbanPicker';
 
@@ -55,10 +56,10 @@ export function KanbanView() {
     useSensor(KeyboardSensor),
   );
 
-  async function handleDragEnd(event: DragEndEvent) {
+  function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over) return;
-    await setKanbanStatus(String(active.id), over.id as KanbanStatus);
+    fireAndForget(setKanbanStatus(String(active.id), over.id as KanbanStatus));
   }
 
   return (
