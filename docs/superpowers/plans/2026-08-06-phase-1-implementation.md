@@ -1868,10 +1868,14 @@ describe('LabelManager', () => {
     render(<LabelManager />);
     await userEvent.type(screen.getByPlaceholderText('Label name'), 'Security');
     await userEvent.click(screen.getByText('Add label'));
-    expect(await screen.findByText('Security')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Security')).toBeInTheDocument();
   });
 });
 ```
+
+Note: `findByDisplayValue`, not `findByText` — the label name renders inside
+an editable `<input defaultValue={label.name} />` (same pattern as
+`ContainerColumn`'s rename input from Task 9), not as plain text content.
 
 - [ ] **Step 2: Run test to verify it fails**
 
