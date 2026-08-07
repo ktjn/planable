@@ -14,4 +14,5 @@ export const INBOX_CONTAINER: Container = {
   projectId: INBOX_PROJECT_ID,
   name: 'Inbox',
   order: 0,
+  weekly: null,
 };

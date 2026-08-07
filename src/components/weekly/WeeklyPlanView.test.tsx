@@ -10,6 +10,9 @@ vi.mock('../../db/db', async () => {
 import { WeeklyPlanView } from './WeeklyPlanView';
 import { createTask } from '../../db/repositories/tasks';
 import { addToWeek, setWeeklyDay } from '../../db/repositories/taskMembership';
+import { addContainerToWeek, setContainerWeeklyDay } from '../../db/repositories/containers';
+import { createProject } from '../../db/repositories/projects';
+import { createContainer } from '../../db/repositories/containers';
 import { getCurrentWeekId } from '../../lib/week';
 import { INBOX_PROJECT_ID, INBOX_CONTAINER_ID } from '../../db/inbox';
 
@@ -22,7 +25,10 @@ describe('WeeklyPlanView', () => {
     render(<WeeklyPlanView />);
 
     expect(await screen.findByText('Plan work')).toBeInTheDocument();
-    expect(screen.getByText('Tue').closest('section')).toContainElement(screen.getByText('Plan work'));
+    const tasksBoard = screen.getByText('Tasks').closest('section')!;
+    expect(within(tasksBoard).getByText('Tue').closest('section')).toContainElement(
+      screen.getByText('Plan work'),
+    );
   });
 
   it('renders day columns as drop targets and task rows as drag sources', async () => {
@@ -38,7 +44,8 @@ describe('WeeklyPlanView', () => {
   it('quick-adds a task directly into the clicked day column, in the Inbox project', async () => {
     render(<WeeklyPlanView />);
 
-    const wedSection = screen.getByText('Wed').closest('section')!;
+    const tasksBoard = screen.getByText('Tasks').closest('section')!;
+    const wedSection = within(tasksBoard).getByText('Wed').closest('section')!;
     await userEvent.click(within(wedSection).getByText('+ Quick add'));
     await userEvent.type(within(wedSection).getByPlaceholderText('Type a title…'), 'Quick task{Enter}');
 
@@ -49,5 +56,23 @@ describe('WeeklyPlanView', () => {
     expect(created?.projectId).toBe(INBOX_PROJECT_ID);
     expect(created?.containerId).toBe(INBOX_CONTAINER_ID);
     expect(created?.weekly).toEqual({ weekId: getCurrentWeekId(), day: 'Wed', repeatWeekly: false });
+  });
+
+  it('shows a scheduled container in the Containers board with project context, independent of tasks', async () => {
+    const project = await createProject('Eng');
+    const container = await createContainer(project.id, 'Architecture');
+    await addContainerToWeek(container.id, getCurrentWeekId());
+    await setContainerWeeklyDay(container.id, 'Wed');
+
+    render(<WeeklyPlanView />);
+
+    expect(await screen.findByText('Architecture')).toBeInTheDocument();
+    const containersBoard = screen.getByText('Containers').closest('section')!;
+    expect(within(containersBoard).getByText('Wed').closest('section')).toContainElement(
+      screen.getByText('Architecture'),
+    );
+    expect(within(containersBoard).getByText('Eng')).toBeInTheDocument();
+    const tasksBoard = screen.getByText('Tasks').closest('section')!;
+    expect(within(tasksBoard).queryByText('Architecture')).not.toBeInTheDocument();
   });
 });

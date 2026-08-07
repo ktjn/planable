@@ -7,11 +7,21 @@ export interface Project {
   order: number;
 }
 
+export interface WeeklyMembership {
+  weekId: string;
+  day: WeekDay;
+}
+
+export interface WeeklyTaskMembership extends WeeklyMembership {
+  repeatWeekly: boolean;
+}
+
 export interface Container {
   id: string;
   projectId: string;
   name: string;
   order: number;
+  weekly: WeeklyMembership | null;
 }
 
 export interface Label {
@@ -24,12 +34,6 @@ export interface KanbanMembership {
   status: KanbanStatus;
 }
 
-export interface WeeklyMembership {
-  weekId: string;
-  day: WeekDay;
-  repeatWeekly: boolean;
-}
-
 export interface Task {
   id: string;
   title: string;
@@ -40,7 +44,7 @@ export interface Task {
   completed: boolean;
   completedDate: number | null;
   kanban: KanbanMembership | null;
-  weekly: WeeklyMembership | null;
+  weekly: WeeklyTaskMembership | null;
 }
 
 export interface WeekTemplate {
