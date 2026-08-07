@@ -53,4 +53,19 @@ describe('KanbanView', () => {
     expect(created?.containerId).toBe(INBOX_CONTAINER_ID);
     expect(created?.kanban).toEqual({ status: 'Blocked' });
   });
+
+  it('quick-adds a task directly into the Done column and marks it completed', async () => {
+    render(<KanbanView />);
+
+    const doneSection = screen.getByText('Done').closest('section')!;
+    await userEvent.click(within(doneSection).getByText('+ Quick add'));
+    await userEvent.type(within(doneSection).getByPlaceholderText('Type a title…'), 'Done task{Enter}');
+
+    expect(await within(doneSection).findByText('Done task')).toBeInTheDocument();
+
+    const { db } = await import('../../db/db');
+    const created = await db.tasks.filter((t) => t.title === 'Done task').first();
+    expect(created?.kanban).toEqual({ status: 'Done' });
+    expect(created?.completed).toBe(true);
+  });
 });

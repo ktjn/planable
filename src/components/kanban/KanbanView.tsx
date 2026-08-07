@@ -11,9 +11,8 @@ import {
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { db } from '../../db/db';
-import { createTask } from '../../db/repositories/tasks';
+import { createInboxTask } from '../../db/repositories/tasks';
 import { addToKanban, setKanbanStatus } from '../../db/repositories/taskMembership';
-import { INBOX_PROJECT_ID, INBOX_CONTAINER_ID } from '../../db/inbox';
 import { fireAndForget } from '../../lib/fireAndForget';
 import type { KanbanStatus } from '../../db/schema';
 import { KanbanSquare, Plus } from 'lucide-react';
@@ -50,9 +49,9 @@ function StatusColumn({ status, titles }: { status: KanbanStatus; titles: { id: 
   const { setNodeRef } = useDroppable({ id: status });
 
   async function handleAdd(title: string) {
-    const task = await createTask({ title, projectId: INBOX_PROJECT_ID, containerId: INBOX_CONTAINER_ID });
+    const task = await createInboxTask(title);
     await addToKanban(task.id);
-    if (status !== 'Todo') await setKanbanStatus(task.id, status);
+    await setKanbanStatus(task.id, status);
   }
 
   return (

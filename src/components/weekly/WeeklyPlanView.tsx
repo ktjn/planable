@@ -22,8 +22,7 @@ import { CalendarDays, CalendarPlus, Plus } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { AddToWeekPicker } from './AddToWeekPicker';
 import { WeekRolloverDialog } from './WeekRolloverDialog';
-import { createTask } from '../../db/repositories/tasks';
-import { INBOX_PROJECT_ID, INBOX_CONTAINER_ID } from '../../db/inbox';
+import { createInboxTask } from '../../db/repositories/tasks';
 import { QuickAddRow } from '../shared/QuickAddRow';
 
 const COLUMNS: WeekDay[] = ['Unplanned', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
@@ -65,9 +64,9 @@ function DayColumn({
   const { setNodeRef } = useDroppable({ id: day });
 
   async function handleAdd(title: string) {
-    const task = await createTask({ title, projectId: INBOX_PROJECT_ID, containerId: INBOX_CONTAINER_ID });
+    const task = await createInboxTask(title);
     await addToWeek(task.id, weekId);
-    if (day !== 'Unplanned') await setWeeklyDay(task.id, day);
+    await setWeeklyDay(task.id, day);
   }
 
   return (

@@ -1,5 +1,6 @@
 import { db } from '../db';
 import type { Task } from '../schema';
+import { INBOX_PROJECT_ID, INBOX_CONTAINER_ID } from '../inbox';
 
 export async function listTasksByContainer(containerId: string): Promise<Task[]> {
   return db.tasks.where('containerId').equals(containerId).toArray();
@@ -26,6 +27,10 @@ export async function createTask(input: {
   };
   await db.tasks.add(task);
   return task;
+}
+
+export async function createInboxTask(title: string): Promise<Task> {
+  return createTask({ title, projectId: INBOX_PROJECT_ID, containerId: INBOX_CONTAINER_ID });
 }
 
 export async function updateTask(
