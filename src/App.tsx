@@ -4,6 +4,7 @@ import { ProjectView } from './components/projects/ProjectView';
 import { LabelManager } from './components/labels/LabelManager';
 import { WeeklyPlanView } from './components/weekly/WeeklyPlanView';
 import { KanbanView } from './components/kanban/KanbanView';
+import { AllTasksView } from './components/tasks/AllTasksView';
 import { SearchView } from './components/search/SearchView';
 import { Settings } from './components/settings/Settings';
 import { useKeyboardShortcuts } from './lib/useKeyboardShortcuts';
@@ -62,6 +63,7 @@ export default function App() {
       <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 md:px-6">
         {active.kind === 'weekly' && <WeeklyPlanView />}
         {active.kind === 'kanban' && <KanbanView />}
+        {active.kind === 'all-tasks' && <AllTasksView />}
         {active.kind === 'labels' && <LabelManager />}
         {active.kind === 'search' && <SearchView onOpenTask={openTaskInProject} />}
         {active.kind === 'settings' && <Settings />}
