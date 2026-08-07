@@ -14,7 +14,7 @@ import { db } from '../../db/db';
 import { advanceActiveWeek } from '../../lib/activeWeek';
 import { getCurrentWeekId, getNextWeekId, getWeekLabel } from '../../lib/week';
 import { SETTING_ACTIVE_WEEK } from '../../db/repositories/settings';
-import { setWeeklyDay } from '../../db/repositories/taskMembership';
+import { addToWeek, setWeeklyDay } from '../../db/repositories/taskMembership';
 import { autoHandleClosingWeek } from '../../lib/rollover';
 import { fireAndForget } from '../../lib/fireAndForget';
 import type { WeekDay } from '../../db/schema';
@@ -22,6 +22,9 @@ import { CalendarDays, CalendarPlus, Plus } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { AddToWeekPicker } from './AddToWeekPicker';
 import { WeekRolloverDialog } from './WeekRolloverDialog';
+import { createTask } from '../../db/repositories/tasks';
+import { INBOX_PROJECT_ID, INBOX_CONTAINER_ID } from '../../db/inbox';
+import { QuickAddRow } from '../shared/QuickAddRow';
 
 const COLUMNS: WeekDay[] = ['Unplanned', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
@@ -50,8 +53,23 @@ function DraggableTaskRow({ id, title }: { id: string; title: string }) {
   );
 }
 
-function DayColumn({ day, titles }: { day: WeekDay; titles: { id: string; title: string }[] }) {
+function DayColumn({
+  day,
+  weekId,
+  titles,
+}: {
+  day: WeekDay;
+  weekId: string;
+  titles: { id: string; title: string }[];
+}) {
   const { setNodeRef } = useDroppable({ id: day });
+
+  async function handleAdd(title: string) {
+    const task = await createTask({ title, projectId: INBOX_PROJECT_ID, containerId: INBOX_CONTAINER_ID });
+    await addToWeek(task.id, weekId);
+    if (day !== 'Unplanned') await setWeeklyDay(task.id, day);
+  }
+
   return (
     <section
       ref={setNodeRef}
@@ -73,6 +91,9 @@ function DayColumn({ day, titles }: { day: WeekDay; titles: { id: string; title:
           <DraggableTaskRow key={t.id} id={t.id} title={t.title} />
         ))}
       </ul>
+      <div className="p-2 pt-0">
+        <QuickAddRow onAdd={handleAdd} />
+      </div>
     </section>
   );
 }
@@ -134,6 +155,7 @@ export function WeeklyPlanView() {
             <DayColumn
               key={day}
               day={day}
+              weekId={weekId}
               titles={tasks.filter((t) => t.weekly?.day === day).map((t) => ({ id: t.id, title: t.title }))}
             />
           ))}
