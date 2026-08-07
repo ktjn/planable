@@ -6,7 +6,7 @@ vi.mock('../db', async () => {
   return { db: new PlanableDB(`test-tasks-${Math.random()}`) };
 });
 
-import { createTask, listTasksByContainer, updateTask, setTaskCompleted, deleteTask } from './tasks';
+import { createTask, listTasksByContainer, updateTask, setTaskCompleted, deleteTask, reorderTasks } from './tasks';
 import { INBOX_PROJECT_ID, INBOX_CONTAINER_ID } from '../inbox';
 
 describe('task repository', () => {
@@ -29,6 +29,7 @@ describe('task repository', () => {
     expect(task.archived).toBe(false);
     expect(task.weekly).toBeNull();
     expect(task.labels).toEqual([]);
+    expect(task.order).toBe(0);
   });
 
   it('lists tasks by container', async () => {
@@ -78,5 +79,19 @@ describe('task repository', () => {
     await deleteTask(task.id);
     const tasks = await listTasksByContainer(INBOX_CONTAINER_ID);
     expect(tasks.find((t) => t.id === task.id)).toBeUndefined();
+  });
+
+  it('assigns increasing order within a container and reorders tasks', async () => {
+    const a = await createTask({ title: 'A', projectId: INBOX_PROJECT_ID, containerId: INBOX_CONTAINER_ID });
+    const b = await createTask({ title: 'B', projectId: INBOX_PROJECT_ID, containerId: INBOX_CONTAINER_ID });
+    expect((await db.tasks.get(a.id))?.order).toBe(0);
+    expect((await db.tasks.get(b.id))?.order).toBe(1);
+
+    await reorderTasks(INBOX_CONTAINER_ID, [b.id, a.id]);
+
+    const ordered = await listTasksByContainer(INBOX_CONTAINER_ID);
+    expect(ordered.map((t) => t.id)).toEqual([b.id, a.id]);
+    expect(ordered[0].order).toBe(0);
+    expect(ordered[1].order).toBe(1);
   });
 });

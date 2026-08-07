@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useDraggable } from '@dnd-kit/core';
+import { useSortable } from '@dnd-kit/sortable';
 import { GripVertical } from 'lucide-react';
 import { setTaskCompleted } from '../../db/repositories/tasks';
 import { addToWeek } from '../../db/repositories/taskMembership';
@@ -19,9 +19,9 @@ export function TaskCard({
   labelsById: Map<string, Label>;
 }) {
   const [editing, setEditing] = useState(false);
-  const { setNodeRef, setActivatorNodeRef, listeners, attributes, transform, isDragging } = useDraggable(
-    { id: task.id },
-  );
+  const { setNodeRef, setActivatorNodeRef, listeners, attributes, transform, isDragging } = useSortable({
+    id: task.id,
+  });
 
   return (
     <>

@@ -9,13 +9,9 @@ vi.mock('../db', async () => {
 import {
   createContainer,
   listContainersByProject,
-  listContainersByWeek,
   renameContainer,
   reorderContainers,
   deleteContainer,
-  addContainerToWeek,
-  setContainerWeeklyDay,
-  removeContainerFromWeek,
   addContainerToKanban,
   setContainerKanbanStatus,
   removeContainerFromKanban,
@@ -58,46 +54,6 @@ describe('container repository', () => {
     await expect(deleteContainer(INBOX_CONTAINER_ID)).rejects.toThrow();
   });
 
-  it('adds a container to a week, moves its day, and removes it without touching child tasks', async () => {
-    const project = await createProject('Demo3');
-    const container = await createContainer(project.id, 'Architecture');
-    const task = await createTask({ title: 'Child', projectId: project.id, containerId: container.id });
-    const taskBefore = await db.tasks.get(task.id);
-
-    await addContainerToWeek(container.id, '2026-W32');
-    expect((await db.containers.get(container.id))?.weekly).toEqual({
-      weekId: '2026-W32',
-      day: 'Unplanned',
-    });
-
-    await setContainerWeeklyDay(container.id, 'Tue');
-    expect((await db.containers.get(container.id))?.weekly?.day).toBe('Tue');
-
-    expect(await db.tasks.get(task.id)).toEqual(taskBefore);
-
-    await removeContainerFromWeek(container.id);
-    expect((await db.containers.get(container.id))?.weekly).toBeNull();
-    expect(await db.tasks.get(task.id)).toEqual(taskBefore);
-  });
-
-  it('lists only containers scheduled in the given week', async () => {
-    const project = await createProject('Demo4');
-    const scheduled = await createContainer(project.id, 'Scheduled');
-    const other = await createContainer(project.id, 'Other');
-    await addContainerToWeek(scheduled.id, '2026-W32');
-
-    const ids = (await listContainersByWeek('2026-W32')).map((c) => c.id);
-    expect(ids).toContain(scheduled.id);
-    expect(ids).not.toContain(other.id);
-  });
-
-  it('does not change the day when a container has no weekly membership', async () => {
-    const project = await createProject('Demo5');
-    const container = await createContainer(project.id, 'Unscheduled');
-    await setContainerWeeklyDay(container.id, 'Wed');
-    expect((await db.containers.get(container.id))?.weekly).toBeNull();
-  });
-
   it('adds a container to Kanban as Todo, updates status, and removes it', async () => {
     const project = await createProject('K1');
     const container = await createContainer(project.id, 'Stream');
@@ -122,17 +78,15 @@ describe('container repository', () => {
     expect(after?.completedDate).toBeNull();
   });
 
-  it('archiving a container clears weekly and kanban but leaves child tasks alone', async () => {
+  it('archiving a container clears kanban but leaves child tasks alone', async () => {
     const project = await createProject('A1');
     const container = await createContainer(project.id, 'ToArchive');
     const child = await createTask({ title: 'Child', projectId: project.id, containerId: container.id });
-    await addContainerToWeek(container.id, '2026-W32');
     await addContainerToKanban(container.id);
 
     await setContainerArchived(container.id, true);
     const archived = (await db.containers.get(container.id))!;
     expect(archived.archived).toBe(true);
-    expect(archived.weekly).toBeNull();
     expect(archived.kanban).toBeNull();
 
     const afterChild = await db.tasks.get(child.id);

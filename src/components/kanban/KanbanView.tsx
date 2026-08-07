@@ -11,42 +11,19 @@ import {
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState } from 'react';
 import { db } from '../../db/db';
-import { setContainerKanbanStatus } from '../../db/repositories/containers';
-import { listTasksByContainer, createTask } from '../../db/repositories/tasks';
+import { setContainerKanbanStatus, createContainer } from '../../db/repositories/containers';
+import { createTask } from '../../db/repositories/tasks';
 import { listLabels } from '../../db/repositories/labels';
 import { fireAndForget } from '../../lib/fireAndForget';
+import { INBOX_PROJECT_ID } from '../../db/inbox';
 import type { Container, KanbanStatus, Label } from '../../db/schema';
 import { GripVertical, KanbanSquare, Plus } from 'lucide-react';
 import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
 import { AddToKanbanPicker } from './AddToKanbanPicker';
+import { QuickAddRow } from '../shared/QuickAddRow';
+import { SortedTaskList } from '../shared/SortedTaskList';
 import { EntityLabels } from '../shared/EntityLabels';
 import { ContainerDialog } from '../projects/ContainerDialog';
-
-function InlineQuickAdd({ onAdd, onClose }: { onAdd: (title: string) => Promise<void>; onClose: () => void }) {
-  const [title, setTitle] = useState('');
-  return (
-    <Input
-      autoFocus
-      placeholder="Type a title…"
-      value={title}
-      onChange={(e) => setTitle(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' && title.trim()) {
-          const value = title;
-          setTitle('');
-          void onAdd(value.trim());
-        } else if (e.key === 'Escape') {
-          setTitle('');
-          onClose();
-        }
-      }}
-      onBlur={() => {
-        if (!title.trim()) onClose();
-      }}
-    />
-  );
-}
 
 const COLUMNS: KanbanStatus[] = ['Todo', 'Doing', 'Blocked', 'Done'];
 
@@ -61,15 +38,12 @@ function KanbanCard({
   container,
   projectName,
   labelsById,
-  taskCount,
 }: {
   container: Container;
   projectName: string;
   labelsById: Map<string, Label>;
-  taskCount: number;
 }) {
   const [editing, setEditing] = useState(false);
-  const [quickOpen, setQuickOpen] = useState(false);
   const { setNodeRef, setActivatorNodeRef, listeners, attributes, transform, isDragging } = useDraggable({
     id: container.id,
   });
@@ -81,11 +55,11 @@ function KanbanCard({
         data-dnd-draggable
         onDoubleClick={() => setEditing(true)}
         style={{ transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined }}
-        className={`flex flex-col gap-1.5 rounded-lg border border-border/80 bg-background px-3 py-2 text-sm text-foreground shadow-sm hover:border-primary/30 hover:shadow-md ${
+        className={`flex flex-col rounded-lg border border-border/80 bg-background text-sm text-foreground shadow-sm hover:border-primary/30 hover:shadow-md ${
           isDragging ? 'opacity-50' : ''
         }`}
       >
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start justify-between gap-2 px-3 pt-2">
           <div className="min-w-0 flex-1">
             <span className="block truncate font-medium">{container.name}</span>
             <span className="block truncate text-xs text-muted-foreground">{projectName}</span>
@@ -101,30 +75,17 @@ function KanbanCard({
             <GripVertical className="h-4 w-4" />
           </button>
         </div>
-        <EntityLabels labelIds={container.labels} labelsById={labelsById} />
-        <div className="flex items-center justify-between gap-2">
-          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-            {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
-          </span>
-          <button
-            aria-label={`Add task to ${container.name}`}
-            className="shrink-0 rounded px-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-            onClick={(e) => {
-              e.stopPropagation();
-              setQuickOpen((v) => !v);
-            }}
-          >
-            +
-          </button>
+        <div className="px-3">
+          <EntityLabels labelIds={container.labels} labelsById={labelsById} />
         </div>
-        {quickOpen && (
-          <InlineQuickAdd
+        <SortedTaskList containerId={container.id} labelsById={labelsById} />
+        <div className="p-2 pt-0">
+          <QuickAddRow
             onAdd={async (title) => {
               await createTask({ title, projectId: container.projectId, containerId: container.id });
             }}
-            onClose={() => setQuickOpen(false)}
           />
-        )}
+        </div>
       </li>
       {editing && <ContainerDialog container={container} onClose={() => setEditing(false)} />}
     </>
@@ -139,21 +100,12 @@ function ContainerList({
   projectById: Map<string, { id: string; name: string }>;
 }) {
   const containers = useLiveQuery(
-    () => db.containers.filter((c) => !c.archived && c.kanban?.status === status).sortBy('name'),
+    () => db.containers.filter((c) => !c.archived && c.kanban?.status === status).sortBy('order'),
     [status],
     [],
   );
   const labels = useLiveQuery(listLabels, [], []);
   const labelsById = useMemo(() => new Map(labels.map((l) => [l.id, l])), [labels]);
-  const taskCounts = useLiveQuery(
-    () => db.tasks.toArray().then((tasks) => {
-      const map = new Map<string, number>();
-      for (const t of tasks) map.set(t.containerId, (map.get(t.containerId) ?? 0) + 1);
-      return map;
-    }),
-    [],
-    new Map<string, number>(),
-  );
 
   return (
     <ul className="flex flex-col gap-1.5 p-2">
@@ -163,7 +115,6 @@ function ContainerList({
           container={container}
           projectName={projectById.get(container.projectId)?.name ?? ''}
           labelsById={labelsById}
-          taskCount={taskCounts.get(container.id) ?? 0}
         />
       ))}
     </ul>
@@ -174,6 +125,12 @@ function StatusColumn({ status }: { status: KanbanStatus }) {
   const { setNodeRef } = useDroppable({ id: status });
   const projects = useLiveQuery(() => db.projects.toArray(), [], []);
   const projectById = useMemo(() => new Map((projects ?? []).map((p) => [p.id, p])), [projects]);
+
+  async function handleAddContainer(title: string) {
+    const container = await createContainer(INBOX_PROJECT_ID, title);
+    await setContainerKanbanStatus(container.id, status);
+  }
+
   return (
     <section
       ref={setNodeRef}
@@ -189,6 +146,13 @@ function StatusColumn({ status }: { status: KanbanStatus }) {
         </div>
       </div>
       <ContainerList status={status} projectById={projectById} />
+      <div className="p-2 pt-0">
+        <QuickAddRow
+          label="+ Add container"
+          placeholder="Container name…"
+          onAdd={handleAddContainer}
+        />
+      </div>
     </section>
   );
 }

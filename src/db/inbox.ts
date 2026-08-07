@@ -16,6 +16,5 @@ export const INBOX_CONTAINER: Container = {
   order: 0,
   labels: [],
   archived: false,
-  weekly: null,
   kanban: null,
 };

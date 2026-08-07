@@ -105,9 +105,6 @@ function ContainerRow({
             <span className="block truncate text-sm font-medium text-foreground">{container.name}</span>
             <span className="mt-0.5 flex items-center gap-2">
               {children}
-              {container.weekly && (
-                <Badge variant="secondary">Week: {container.weekly.day}</Badge>
-              )}
               {container.kanban && (
                 <Badge variant="secondary">Kanban: {container.kanban.status}</Badge>
               )}

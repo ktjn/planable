@@ -14,7 +14,6 @@ import { createProject } from '../../db/repositories/projects';
 import { createContainer } from '../../db/repositories/containers';
 import { createTask } from '../../db/repositories/tasks';
 import { db } from '../../db/db';
-import { getCurrentWeekId } from '../../lib/week';
 import type { Container, Label } from '../../db/schema';
 
 function renderContainer(container: Container) {
@@ -44,16 +43,17 @@ describe('ContainerColumn drag-and-drop', () => {
     expect(taskRow.closest('[data-dnd-draggable]')).toBeInTheDocument();
   });
 
-  it('schedules an unscheduled container for the current week and shows a badge', async () => {
+  it('quick-adds a task into the container and lists it inside', async () => {
     const project = await createProject('Demo');
-    const container = await createContainer(project.id, 'Architecture');
+    const container = await createContainer(project.id, 'Backlog');
 
     renderContainer(container);
 
-    await userEvent.click(await screen.findByText('Add to this week'));
-    expect(await screen.findByText(/Scheduled: /)).toBeInTheDocument();
+    await userEvent.click(await screen.findByText('+ Quick add'));
+    await userEvent.type(await screen.findByPlaceholderText('Type a title…'), 'Quick task{Enter}');
 
-    const updated = (await db.containers.get(container.id))!;
-    expect(updated.weekly?.weekId).toBe(getCurrentWeekId());
+    expect(await screen.findByText('Quick task')).toBeInTheDocument();
+    const created = await db.tasks.filter((t) => t.title === 'Quick task').first();
+    expect(created?.containerId).toBe(container.id);
   });
 });

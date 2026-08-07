@@ -3,7 +3,10 @@ import type { Task } from '../schema';
 import { INBOX_PROJECT_ID, INBOX_CONTAINER_ID } from '../inbox';
 
 export async function listTasksByContainer(containerId: string): Promise<Task[]> {
-  return db.tasks.where('containerId').equals(containerId).toArray();
+  return db.tasks
+    .where('containerId')
+    .equals(containerId)
+    .sortBy('order');
 }
 
 export async function createTask(input: {
@@ -13,6 +16,7 @@ export async function createTask(input: {
   projectId: string;
   containerId: string;
 }): Promise<Task> {
+  const count = await db.tasks.where('containerId').equals(input.containerId).count();
   const task: Task = {
     id: crypto.randomUUID(),
     title: input.title,
@@ -20,6 +24,7 @@ export async function createTask(input: {
     labels: input.labels ?? [],
     projectId: input.projectId,
     containerId: input.containerId,
+    order: count,
     completed: false,
     completedDate: null,
     archived: false,
@@ -27,6 +32,12 @@ export async function createTask(input: {
   };
   await db.tasks.add(task);
   return task;
+}
+
+export async function reorderTasks(containerId: string, orderedIds: string[]): Promise<void> {
+  await db.transaction('rw', db.tasks, async () => {
+    await Promise.all(orderedIds.map((id, index) => db.tasks.update(id, { order: index })));
+  });
 }
 
 export async function setTaskArchived(id: string, archived: boolean): Promise<void> {

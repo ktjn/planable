@@ -10,9 +10,6 @@ vi.mock('../../db/db', async () => {
 import { WeeklyPlanView } from './WeeklyPlanView';
 import { createTask } from '../../db/repositories/tasks';
 import { addToWeek, setWeeklyDay } from '../../db/repositories/taskMembership';
-import { addContainerToWeek, setContainerWeeklyDay } from '../../db/repositories/containers';
-import { createProject } from '../../db/repositories/projects';
-import { createContainer } from '../../db/repositories/containers';
 import { getCurrentWeekId } from '../../lib/week';
 import { INBOX_PROJECT_ID, INBOX_CONTAINER_ID } from '../../db/inbox';
 
@@ -58,21 +55,9 @@ describe('WeeklyPlanView', () => {
     expect(created?.weekly).toEqual({ weekId: getCurrentWeekId(), day: 'Wed', repeatWeekly: false });
   });
 
-  it('shows a scheduled container in the Containers board with project context, independent of tasks', async () => {
-    const project = await createProject('Eng');
-    const container = await createContainer(project.id, 'Architecture');
-    await addContainerToWeek(container.id, getCurrentWeekId());
-    await setContainerWeeklyDay(container.id, 'Wed');
-
+  it('shows only a Tasks board, with no Containers board', async () => {
     render(<WeeklyPlanView />);
-
-    expect(await screen.findByText('Architecture')).toBeInTheDocument();
-    const containersBoard = screen.getByText('Containers').closest('section')!;
-    expect(within(containersBoard).getByText('Wed').closest('section')).toContainElement(
-      screen.getByText('Architecture'),
-    );
-    expect(within(containersBoard).getByText('Eng')).toBeInTheDocument();
-    const tasksBoard = screen.getByText('Tasks').closest('section')!;
-    expect(within(tasksBoard).queryByText('Architecture')).not.toBeInTheDocument();
+    expect(await screen.findByText('Tasks')).toBeInTheDocument();
+    expect(screen.queryByText('Containers')).not.toBeInTheDocument();
   });
 });
