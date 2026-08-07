@@ -11,12 +11,15 @@ import {
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { db } from '../../db/db';
-import { setKanbanStatus } from '../../db/repositories/taskMembership';
+import { createTask } from '../../db/repositories/tasks';
+import { addToKanban, setKanbanStatus } from '../../db/repositories/taskMembership';
+import { INBOX_PROJECT_ID, INBOX_CONTAINER_ID } from '../../db/inbox';
 import { fireAndForget } from '../../lib/fireAndForget';
 import type { KanbanStatus } from '../../db/schema';
 import { KanbanSquare, Plus } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { AddToKanbanPicker } from './AddToKanbanPicker';
+import { QuickAddRow } from '../shared/QuickAddRow';
 
 const COLUMNS: KanbanStatus[] = ['Todo', 'Doing', 'Blocked', 'Done'];
 
@@ -45,6 +48,13 @@ function DraggableCard({ id, title }: { id: string; title: string }) {
 
 function StatusColumn({ status, titles }: { status: KanbanStatus; titles: { id: string; title: string }[] }) {
   const { setNodeRef } = useDroppable({ id: status });
+
+  async function handleAdd(title: string) {
+    const task = await createTask({ title, projectId: INBOX_PROJECT_ID, containerId: INBOX_CONTAINER_ID });
+    await addToKanban(task.id);
+    if (status !== 'Todo') await setKanbanStatus(task.id, status);
+  }
+
   return (
     <section
       ref={setNodeRef}
@@ -66,6 +76,9 @@ function StatusColumn({ status, titles }: { status: KanbanStatus; titles: { id: 
           <DraggableCard key={t.id} id={t.id} title={t.title} />
         ))}
       </ul>
+      <div className="p-2 pt-0">
+        <QuickAddRow onAdd={handleAdd} />
+      </div>
     </section>
   );
 }

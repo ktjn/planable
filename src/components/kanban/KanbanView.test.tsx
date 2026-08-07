@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('../../db/db', async () => {
@@ -35,5 +36,21 @@ describe('KanbanView', () => {
     const { db } = await import('../../db/db');
     const updated = await db.tasks.get(task.id);
     expect(updated?.completed).toBe(true);
+  });
+
+  it('quick-adds a task directly into the clicked status column, in the Inbox project', async () => {
+    render(<KanbanView />);
+
+    const blockedSection = screen.getByText('Blocked').closest('section')!;
+    await userEvent.click(within(blockedSection).getByText('+ Quick add'));
+    await userEvent.type(within(blockedSection).getByPlaceholderText('Type a title…'), 'Blocked task{Enter}');
+
+    expect(await within(blockedSection).findByText('Blocked task')).toBeInTheDocument();
+
+    const { db } = await import('../../db/db');
+    const created = await db.tasks.filter((t) => t.title === 'Blocked task').first();
+    expect(created?.projectId).toBe(INBOX_PROJECT_ID);
+    expect(created?.containerId).toBe(INBOX_CONTAINER_ID);
+    expect(created?.kanban).toEqual({ status: 'Blocked' });
   });
 });
