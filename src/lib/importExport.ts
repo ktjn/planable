@@ -29,6 +29,12 @@ export async function importData(data: PlanableExport): Promise<void> {
   const projects = data.projects ?? [];
   const containers = data.containers ?? [];
   const labels = data.labels ?? [];
+  // Legacy exports before Containers gained optional weekly membership have no
+  // `weekly` field. Normalize it to `null` so the weekly.weekId index stays valid.
+  const normalizedContainers = containers.map((container) => ({
+    ...container,
+    weekly: container.weekly ?? null,
+  }));
   const weekTemplates = (data as Partial<PlanableExport>).weekTemplates ?? [];
   const settings = (data as Partial<PlanableExport>).settings ?? [];
 
@@ -54,7 +60,7 @@ export async function importData(data: PlanableExport): Promise<void> {
       if (!projects.some((p) => p.id === INBOX_PROJECT.id)) {
         await db.projects.add(INBOX_PROJECT);
       }
-      await db.containers.bulkAdd(containers);
+      await db.containers.bulkAdd(normalizedContainers);
       if (!containers.some((c) => c.id === INBOX_CONTAINER.id)) {
         await db.containers.add(INBOX_CONTAINER);
       }

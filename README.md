@@ -12,18 +12,22 @@ and spreadsheets with a single local planning workspace.
   No accounts, no servers, no cloud.
 - **Fast & simple** — a static web app with no backend.
 - **Keyboard-friendly** — navigate, search, and act without leaving the keyboard.
-- **Drag-and-drop driven** — move tasks between weekdays, kanban columns, and
-  project containers; reorder containers and project tabs.
+- **Drag-and-drop driven** — move tasks and containers between weekdays, kanban
+  columns, and project containers; reorder containers and project tabs.
 - **Markdown descriptions**, global color-coded labels.
 
 ## Views
 
-- **Weekly Plan** — plan each week by dragging tasks from _Unplanned_ into
-  Monday–Friday. Planning is entirely manual; start a new week when you're ready
-  and resolve every unfinished task.
-- **Kanban** — execution board (Todo / Doing / Blocked / Done). Independent from
-  the weekly plan.
-- **Projects** — each project is a dynamic tab with user-defined containers.
+- **Weekly Plan** — two independent boards plan each week: **Containers** and
+  **Tasks**. Drag items from _Unplanned_ into Monday–Friday. A Container and its
+  child Tasks are scheduled independently — scheduling or moving a Container
+  never changes its Tasks' weekly membership. Planning is entirely manual; start
+  a new week when you're ready and resolve every scheduled Container and
+  unfinished task.
+- **Kanban** — execution board (Todo / Doing / Blocked / Done). Task-only, and
+  independent from the weekly plan.
+- **Projects** — each project is a dynamic tab with user-defined containers,
+  with per-container "Add to this week" / "Scheduled: <day>" actions.
 
 ## Tech Stack
 
@@ -44,9 +48,10 @@ npm run build     # type-check + production build into dist/
 
 ## Deployment
 
-The app is a static site destined for GitHub Pages. The
-`.github/workflows/deploy.yml` workflow builds and publishes on every push to
-`main`.
+The app is a static site destined for GitHub Pages and uses a relative
+`base` path so it builds into a portable `dist/`. Publish the contents of
+`dist/` (e.g. via a GitHub Pages Actions workflow or the Pages UI) to
+deploy the latest build.
 
 ## Data & Privacy
 

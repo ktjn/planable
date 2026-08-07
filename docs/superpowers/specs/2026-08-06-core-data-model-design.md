@@ -33,14 +33,22 @@ storage, labels, import/export shape, non-goals, phases) still applies.
 ### Container
 
 - `id`, `projectId`, `name`, `order`
+- `weekly: { weekId: string, day: 'Unplanned' | 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' } | null`
+  — optional. Presence means the Container is scheduled on a week's plan.
+  Scheduling a Container represents planning time for that work area and does
+  **not** change the weekly membership of any of its child Tasks.
 - Created, renamed, reordered, and deleted freely within a project.
 - Inbox has one implicit container; the user does not manage it directly.
+- Containers do **not** repeat weekly in this change.
 
 ### Task
 
 The central entity. Every task belongs to exactly one project+container
 (Inbox counts). Kanban and Weekly Plan membership are independent,
-optional, additive states — not fields that always apply.
+optional, additive states — not fields that always apply. Task and
+Container weekly membership are also independent of one another: a Task's
+Container may be scheduled without scheduling the Task itself, and vice
+versa.
 
 - `id`
 - `title`
@@ -76,17 +84,30 @@ independent of one another and independent of its project/container.
 
 ### Weekly Plan
 
-Columns: Unplanned, Monday–Friday. Shows only tasks whose `weekly.weekId`
-matches the current week.
+Columns: Unplanned, Monday–Friday. The Weekly Plan shows two independent
+boards/sections, each scoped to the current `weekId`:
 
-Two ways to add a task to the current week:
-1. "Add to this week" action on a task card anywhere (Project view or
-   Kanban card) — sets `weekly = { weekId: current, day: 'Unplanned', repeatWeekly: false }`.
+- **Containers** — Containers whose `weekly.weekId` matches the current
+  week. Scheduling a Container does not schedule (or unschedule, or copy,
+  or mutate) any of its child Tasks.
+- **Tasks** — Tasks whose `weekly.weekId` matches the current week,
+  exactly as before (including `repeatWeekly` behavior).
+
+Two ways to add a Task to the current week (unchanged):
+1. "Add to this week" action on a task card anywhere — sets
+   `weekly = { weekId: current, day: 'Unplanned', repeatWeekly: false }`.
 2. A picker/drawer within the Weekly Plan view to search all tasks and
    pull one in directly, same effect as above.
 
-Dragging a task between columns only updates `weekly.day`. It never
-touches `kanban` or `completed`.
+Containers are scheduled in the same picker via a separate "Containers"
+tab, and from the Project view via an "Add to this week" action / a
+"Scheduled: <day>" badge on each Container column. Scheduling a Container
+sets `weekly = { weekId: current, day: 'Unplanned' }`.
+
+Dragging a Task between columns only updates `task.weekly.day`. Dragging a
+Container between columns only updates `container.weekly.day`. Container
+and Task drags are fully independent. Neither drag touches `kanban` or
+`completed`, and neither ever updates the other entity type.
 
 ### Kanban
 
@@ -119,7 +140,17 @@ at creation time.
 ## Weekly Rollover
 
 Operates only on `weekly` membership; `kanban` status and `completed` are
-untouched by rollover except where a resolution explicitly says so.
+untouched by rollover except where a resolution explicitly says so. Task
+rollover and Container rollover remain fully independent — resolving one
+never affects the other.
+
+For every Container with `weekly.weekId` equal to the closing week, only
+two resolutions are offered (a Container is never completed, deleted, or
+repeated as a weekly shortcut, and deleting a Container is never an
+incidental side effect of rollover):
+- **Move to next week** — `container.weekly.weekId` advances, `day` resets
+  to `Unplanned`. All child Tasks are preserved untouched.
+- **Return to project** — `container.weekly` is cleared (set to `null`).
 
 For every task with `weekly.weekId` equal to the closing week:
 - **Move to next week** — `weekly.weekId` advances, `day` resets to

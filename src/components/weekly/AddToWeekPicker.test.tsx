@@ -9,6 +9,8 @@ vi.mock('../../db/db', async () => {
 
 import { AddToWeekPicker } from './AddToWeekPicker';
 import { createTask } from '../../db/repositories/tasks';
+import { createProject } from '../../db/repositories/projects';
+import { createContainer } from '../../db/repositories/containers';
 import { INBOX_PROJECT_ID, INBOX_CONTAINER_ID } from '../../db/inbox';
 import { db } from '../../db/db';
 import { getCurrentWeekId } from '../../lib/week';
@@ -26,5 +28,21 @@ describe('AddToWeekPicker', () => {
     const task = await db.tasks.filter((t) => t.title === 'Findable task').first();
     expect(task?.weekly?.weekId).toBe(getCurrentWeekId());
     expect(task?.weekly?.day).toBe('Unplanned');
+  });
+
+  it('schedules a container for the current week from the Containers tab with Unplanned default', async () => {
+    const project = await createProject('Eng');
+    const container = await createContainer(project.id, 'Architecture');
+    const onClose = vi.fn();
+    render(<AddToWeekPicker onClose={onClose} />);
+
+    await userEvent.click(screen.getByText('Containers'));
+    await userEvent.type(screen.getByPlaceholderText('Search containers'), 'Architect');
+    await userEvent.click(await screen.findByText('Architecture'));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    const updated = await db.containers.get(container.id);
+    expect(updated?.weekly?.weekId).toBe(getCurrentWeekId());
+    expect(updated?.weekly?.day).toBe('Unplanned');
   });
 });

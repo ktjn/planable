@@ -9,9 +9,13 @@ vi.mock('../db', async () => {
 import {
   createContainer,
   listContainersByProject,
+  listContainersByWeek,
   renameContainer,
   reorderContainers,
   deleteContainer,
+  addContainerToWeek,
+  setContainerWeeklyDay,
+  removeContainerFromWeek,
 } from './containers';
 import { createProject } from './projects';
 import { createTask } from './tasks';
@@ -47,5 +51,45 @@ describe('container repository', () => {
 
   it('refuses to delete the Inbox container', async () => {
     await expect(deleteContainer(INBOX_CONTAINER_ID)).rejects.toThrow();
+  });
+
+  it('adds a container to a week, moves its day, and removes it without touching child tasks', async () => {
+    const project = await createProject('Demo3');
+    const container = await createContainer(project.id, 'Architecture');
+    const task = await createTask({ title: 'Child', projectId: project.id, containerId: container.id });
+    const taskBefore = await db.tasks.get(task.id);
+
+    await addContainerToWeek(container.id, '2026-W32');
+    expect((await db.containers.get(container.id))?.weekly).toEqual({
+      weekId: '2026-W32',
+      day: 'Unplanned',
+    });
+
+    await setContainerWeeklyDay(container.id, 'Tue');
+    expect((await db.containers.get(container.id))?.weekly?.day).toBe('Tue');
+
+    expect(await db.tasks.get(task.id)).toEqual(taskBefore);
+
+    await removeContainerFromWeek(container.id);
+    expect((await db.containers.get(container.id))?.weekly).toBeNull();
+    expect(await db.tasks.get(task.id)).toEqual(taskBefore);
+  });
+
+  it('lists only containers scheduled in the given week', async () => {
+    const project = await createProject('Demo4');
+    const scheduled = await createContainer(project.id, 'Scheduled');
+    const other = await createContainer(project.id, 'Other');
+    await addContainerToWeek(scheduled.id, '2026-W32');
+
+    const ids = (await listContainersByWeek('2026-W32')).map((c) => c.id);
+    expect(ids).toContain(scheduled.id);
+    expect(ids).not.toContain(other.id);
+  });
+
+  it('does not change the day when a container has no weekly membership', async () => {
+    const project = await createProject('Demo5');
+    const container = await createContainer(project.id, 'Unscheduled');
+    await setContainerWeeklyDay(container.id, 'Wed');
+    expect((await db.containers.get(container.id))?.weekly).toBeNull();
   });
 });

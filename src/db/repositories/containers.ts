@@ -1,14 +1,32 @@
 import { db } from '../db';
-import type { Container } from '../schema';
+import type { Container, WeekDay } from '../schema';
 import { INBOX_CONTAINER_ID, INBOX_PROJECT_ID } from '../inbox';
 
 export async function listContainersByProject(projectId: string): Promise<Container[]> {
   return db.containers.where('projectId').equals(projectId).sortBy('order');
 }
 
+export async function listContainersByWeek(weekId: string): Promise<Container[]> {
+  return db.containers.where('weekly.weekId').equals(weekId).toArray();
+}
+
+export async function addContainerToWeek(containerId: string, weekId: string): Promise<void> {
+  await db.containers.update(containerId, { weekly: { weekId, day: 'Unplanned' } });
+}
+
+export async function setContainerWeeklyDay(containerId: string, day: WeekDay): Promise<void> {
+  const container = await db.containers.get(containerId);
+  if (!container?.weekly) return;
+  await db.containers.update(containerId, { weekly: { ...container.weekly, day } });
+}
+
+export async function removeContainerFromWeek(containerId: string): Promise<void> {
+  await db.containers.update(containerId, { weekly: null });
+}
+
 export async function createContainer(projectId: string, name: string): Promise<Container> {
   const count = await db.containers.where('projectId').equals(projectId).count();
-  const container: Container = { id: crypto.randomUUID(), projectId, name, order: count };
+  const container: Container = { id: crypto.randomUUID(), projectId, name, order: count, weekly: null };
   await db.containers.add(container);
   return container;
 }
