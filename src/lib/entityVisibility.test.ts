@@ -14,7 +14,6 @@ function container(over: Partial<Container> = {}): Container {
     order: 0,
     labels: [],
     archived: false,
-    weekly: null,
     kanban: null,
     ...over,
   };
@@ -28,6 +27,7 @@ function task(over: Partial<Task> = {}): Task {
     labels: [],
     projectId: 'p',
     containerId: 'c',
+    order: 0,
     completed: false,
     completedDate: null,
     archived: false,

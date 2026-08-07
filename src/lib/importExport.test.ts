@@ -8,13 +8,7 @@ vi.mock('../db/db', async () => {
 
 import { exportData, importData } from './importExport';
 import { createProject } from '../db/repositories/projects';
-import {
-  createContainer,
-  addContainerToWeek,
-  setContainerWeeklyDay,
-  setContainerKanbanStatus,
-  setContainerArchived,
-} from '../db/repositories/containers';
+import { createContainer, setContainerKanbanStatus } from '../db/repositories/containers';
 import { createTask, setTaskCompleted, setTaskArchived } from '../db/repositories/tasks';
 import { createLabel } from '../db/repositories/labels';
 import { addToWeek, setWeeklyDay } from '../db/repositories/taskMembership';
@@ -72,11 +66,10 @@ describe('import/export', () => {
     expect(task?.completedDate).toEqual(exportedTask?.completedDate);
   });
 
-  it('round-trips a scheduled Container with an independently scheduled child Task', async () => {
+  it('round-trips a scheduled Task inside a Container with Kanban status', async () => {
     const project = await createProject('Eng');
     const container = await createContainer(project.id, 'Architecture');
-    await addContainerToWeek(container.id, '2026-W32');
-    await setContainerWeeklyDay(container.id, 'Tue');
+    await setContainerKanbanStatus(container.id, 'Doing');
 
     const scheduledTask = await createTask({
       title: 'Task 1',
@@ -86,47 +79,18 @@ describe('import/export', () => {
     await addToWeek(scheduledTask.id, '2026-W32');
     await setWeeklyDay(scheduledTask.id, 'Thu');
 
-    const unscheduledTask = await createTask({
-      title: 'Task 2',
-      projectId: project.id,
-      containerId: container.id,
-    });
-
     const exported = await exportData();
-
     await db.tasks.clear();
     await db.containers.clear();
     await db.projects.clear();
     await db.labels.clear();
-
     await importData(exported);
 
     const importedContainer = (await db.containers.get(container.id))!;
-    expect(importedContainer.weekly).toEqual({ weekId: '2026-W32', day: 'Tue' });
+    expect(importedContainer.kanban).toEqual({ status: 'Doing' });
 
     const importedScheduled = await db.tasks.get(scheduledTask.id);
     expect(importedScheduled?.weekly).toEqual({ weekId: '2026-W32', day: 'Thu', repeatWeekly: false });
-
-    const importedUnscheduled = await db.tasks.get(unscheduledTask.id);
-    expect(importedUnscheduled?.weekly).toBeNull();
-
-    expect(importedContainer.id).toBe(container.id);
     expect(importedScheduled?.containerId).toBe(container.id);
-  });
-
-  it('normalizes legacy Container records without weekly to null', async () => {
-    // Intentionally omit `weekly` to simulate a pre-Container-membership export.
-    const legacyContainer = { id: 'legacy', projectId: 'p', name: 'Old', order: 0 } as Container;
-    await importData({
-      version: 2,
-      projects: [],
-      containers: [legacyContainer],
-      tasks: [],
-      labels: [],
-      weekTemplates: [],
-      settings: [],
-    });
-    const imported = (await db.containers.get('legacy'))!;
-    expect(imported.weekly).toBeNull();
   });
 });

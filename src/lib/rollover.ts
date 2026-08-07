@@ -1,5 +1,5 @@
 import { db } from '../db/db';
-import type { Container, Task, WeekDay } from '../db/schema';
+import type { Task, WeekDay } from '../db/schema';
 import { listWeekTemplates } from '../db/repositories/weekTemplates';
 import { getNextWeekId } from './week';
 
@@ -37,6 +37,7 @@ export async function autoHandleClosingWeek(weekId: string): Promise<void> {
       if (task.weekly?.repeatWeekly) {
         const template = templatesByTask.get(task.id);
         if (template) {
+          const count = await db.tasks.where('containerId').equals(template.containerId).count();
           await db.tasks.add({
             id: crypto.randomUUID(),
             title: template.title,
@@ -44,6 +45,7 @@ export async function autoHandleClosingWeek(weekId: string): Promise<void> {
             labels: template.labels,
             projectId: template.projectId,
             containerId: template.containerId,
+            order: count,
             completed: false,
             completedDate: null,
             archived: false,
@@ -54,45 +56,6 @@ export async function autoHandleClosingWeek(weekId: string): Promise<void> {
       await db.tasks.update(task.id, { weekly: null });
     }
   });
-}
-
-export type ContainerResolutionAction = 'move' | 'return';
-
-export async function listWeekContainers(weekId: string): Promise<Container[]> {
-  return db.containers.where('weekly.weekId').equals(weekId).toArray();
-}
-
-/**
- * Returns every Container scheduled in the closing week. Containers have no
- * completion or repeat concept, so every scheduled Container needs a manual
- * choice: move to next week, or return to its project. Never moves anything.
- */
-export async function getUnresolvedContainers(weekId: string): Promise<Container[]> {
-  return listWeekContainers(weekId);
-}
-
-/**
- * Resolve a single Container from the closing week. Only ever touches the one
- * Container's weekly membership; child Tasks are left byte-for-byte unchanged.
- */
-export async function resolveContainer(
-  containerId: string,
-  action: ContainerResolutionAction,
-): Promise<void> {
-  const container = await db.containers.get(containerId);
-  if (!container?.weekly) return;
-  switch (action) {
-    case 'move': {
-      const nextWeekId = getNextWeekId(container.weekly.weekId);
-      await db.containers.update(containerId, {
-        weekly: { weekId: nextWeekId, day: 'Unplanned' as WeekDay },
-      });
-      break;
-    }
-    case 'return':
-      await db.containers.update(containerId, { weekly: null });
-      break;
-  }
 }
 
 export type ResolutionAction = 'move' | 'return' | 'complete' | 'delete';

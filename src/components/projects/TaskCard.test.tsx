@@ -17,6 +17,7 @@ const baseTask: Task = {
   labels: ['l1'],
   projectId: 'p',
   containerId: 'c',
+  order: 0,
   completed: false,
   completedDate: null,
   archived: false,

@@ -3,7 +3,15 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { fireAndForget } from '../../lib/fireAndForget';
 
-export function QuickAddRow({ onAdd }: { onAdd: (title: string) => Promise<void> }) {
+export function QuickAddRow({
+  onAdd,
+  label = '+ Quick add',
+  placeholder = 'Type a title…',
+}: {
+  onAdd: (title: string) => Promise<void>;
+  label?: string;
+  placeholder?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
 
@@ -22,7 +30,7 @@ export function QuickAddRow({ onAdd }: { onAdd: (title: string) => Promise<void>
         size="sm"
         onClick={() => setOpen(true)}
       >
-        + Quick add
+        {label}
       </Button>
     );
   }
@@ -30,7 +38,7 @@ export function QuickAddRow({ onAdd }: { onAdd: (title: string) => Promise<void>
   return (
     <Input
       autoFocus
-      placeholder="Type a title…"
+      placeholder={placeholder}
       value={title}
       onChange={(e) => setTitle(e.target.value)}
       onKeyDown={(e) => {
