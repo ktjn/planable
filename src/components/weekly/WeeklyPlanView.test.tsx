@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('../../db/db', async () => {
@@ -32,5 +33,21 @@ describe('WeeklyPlanView', () => {
     const row = await screen.findByText('Draggable');
     expect(row).not.toHaveAttribute('draggable'); // dnd-kit uses pointer events, not native HTML5 DnD
     expect(row.closest('[data-dnd-draggable]')).toBeInTheDocument();
+  });
+
+  it('quick-adds a task directly into the clicked day column, in the Inbox project', async () => {
+    render(<WeeklyPlanView />);
+
+    const wedSection = screen.getByText('Wed').closest('section')!;
+    await userEvent.click(within(wedSection).getByText('+ Quick add'));
+    await userEvent.type(within(wedSection).getByPlaceholderText('Type a title…'), 'Quick task{Enter}');
+
+    expect(await within(wedSection).findByText('Quick task')).toBeInTheDocument();
+
+    const { db } = await import('../../db/db');
+    const created = await db.tasks.filter((t) => t.title === 'Quick task').first();
+    expect(created?.projectId).toBe(INBOX_PROJECT_ID);
+    expect(created?.containerId).toBe(INBOX_CONTAINER_ID);
+    expect(created?.weekly).toEqual({ weekId: getCurrentWeekId(), day: 'Wed', repeatWeekly: false });
   });
 });

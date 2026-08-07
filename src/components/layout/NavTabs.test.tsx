@@ -59,6 +59,14 @@ describe('NavTabs', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  it('renders an All Tasks tab and calls onSelect', async () => {
+    const onSelect = vi.fn();
+    render(<NavTabs active={{ kind: 'weekly' }} onSelect={onSelect} />);
+
+    await userEvent.click(await screen.findByText('All Tasks'));
+    expect(onSelect).toHaveBeenCalledWith({ kind: 'all-tasks' });
+  });
+
   it('never shows rename or delete controls for Inbox', async () => {
     const onSelect = vi.fn();
     render(<NavTabs active={{ kind: 'weekly' }} onSelect={onSelect} />);
