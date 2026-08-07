@@ -46,11 +46,11 @@ describe('AllTasksView', () => {
     expect((await db.tasks.get(task.id))?.completed).toBe(true);
   });
 
-  it('opens the edit dialog when a task title is clicked', async () => {
+  it('opens the edit dialog when a task row is double-clicked', async () => {
     await createTask({ title: 'Editable', projectId: INBOX_PROJECT_ID, containerId: INBOX_CONTAINER_ID });
 
     render(<AllTasksView />);
-    await userEvent.click(await screen.findByText('Editable'));
+    await userEvent.dblClick(await screen.findByText('Editable'));
 
     expect(await screen.findByText('Edit task')).toBeInTheDocument();
   });

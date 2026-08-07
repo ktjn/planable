@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Implementation status:** Implemented. Data-model changes (Container `labels`/`archived`/`kanban`; Task `archived`, `kanban` removed), Container-only Kanban, All Containers view, archive-aware views, Search (Task + Container) with active-first ranking, double-click editing, container quick-add, and dialog close fixes are done. DB **migration was intentionally deferred** ("we don't need any migration yet"): the v5 migration, legacy Task-Kanban aggregation helper, `kanban.status` index, and import/export version bump stay unchecked/pending.
+
 **Goal:** Make Containers the only Kanban-schedulable entity, add Container labels and a global All Containers view, add reversible archive state for Containers and Tasks, make labels visible consistently across every work view, add fast inline task creation to Containers, standardize double-click-to-edit, fix dialog close behavior, and remove DnD lag.
 
 **Baseline:** The previous schedulable-container Weekly Plan work is already implemented. Containers already have independent `weekly` membership and Weekly Plan renders separate Container and Task boards. This plan builds on that implementation rather than reintroducing it.
@@ -202,16 +204,16 @@ Update names if implementation reveals a better shared boundary, but do not dupl
 
 # Task 1: Schema, v5 migration, import/export
 
-- [ ] Update `Container` with `labels`, `archived`, and `kanban`.
-- [ ] Update `Task` with `archived` and remove `kanban`.
-- [ ] Add a pure `deriveContainerKanbanFromLegacyTasks()` migration helper.
-- [ ] Add Dexie v5 migration.
-- [ ] Add `kanban.status` Container index.
-- [ ] Increment JSON export version to 3.
-- [ ] Normalize older imports using the same migration helper.
-- [ ] Ensure Inbox Container is created with `labels: []`, `archived: false`, `weekly: null`, `kanban: null`.
-- [ ] Add migration tests covering mixed legacy Task statuses and empty Containers.
-- [ ] Add import/export round-trip test preserving Container labels/archive/Kanban and Task archive state.
+- [x] Update `Container` with `labels`, `archived`, and `kanban`.
+- [x] Update `Task` with `archived` and remove `kanban`.
+- [ ] Add a pure `deriveContainerKanbanFromLegacyTasks()` migration helper. *(deferred – no migration)*
+- [ ] Add Dexie v5 migration. *(deferred – no migration)*
+- [ ] Add `kanban.status` Container index. *(deferred – no migration)*
+- [ ] Increment JSON export version to 3. *(deferred – no migration)*
+- [ ] Normalize older imports using the same migration helper. *(deferred – no migration)*
+- [x] Ensure Inbox Container is created with `labels: []`, `archived: false`, `weekly: null`, `kanban: null`.
+- [ ] Add migration tests covering mixed legacy Task statuses and empty Containers. *(deferred – no migration)*
+- [x] Add import/export round-trip test preserving Container labels/archive/Kanban and Task archive state.
 
 **Acceptance:** Existing local data opens without reset; no Task has application-visible Kanban membership after migration.
 
@@ -544,23 +546,23 @@ npm run build
 
 Add/adjust tests for:
 
-- v5 migration.
-- Legacy Kanban aggregation.
-- Import/export v3.
-- Container labels CRUD.
-- Task/Container archive/unarchive.
-- Archive membership cleanup.
-- Task template cleanup on archive.
-- Default-view archive filtering.
-- Search active-before-archived ranking.
-- Container-only Kanban picker and DnD.
-- No Task Kanban actions/badges.
-- All Containers nav/view.
-- Quick-add Task per Container.
-- Double-click editing.
-- TaskDialog/ContainerDialog top-right X close.
-- Labels visible in all entity views.
-- Container rollover never recurs.
+- [ ] v5 migration. *(deferred – no migration)*
+- [ ] Legacy Kanban aggregation. *(deferred – no migration)*
+- [ ] Import/export v3. *(deferred – no migration)*
+- [x] Container labels CRUD.
+- [x] Task/Container archive/unarchive.
+- [x] Archive membership cleanup.
+- [x] Task template cleanup on archive.
+- [x] Default-view archive filtering.
+- [x] Search active-before-archived ranking.
+- [x] Container-only Kanban picker and DnD.
+- [x] No Task Kanban actions/badges.
+- [x] All Containers nav/view.
+- [x] Quick-add Task per Container.
+- [x] Double-click editing.
+- [x] TaskDialog/ContainerDialog top-right X close.
+- [x] Labels visible in all entity views.
+- [x] Container rollover never recurs.
 
 ---
 

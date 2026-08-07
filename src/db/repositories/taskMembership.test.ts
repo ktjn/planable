@@ -7,55 +7,16 @@ vi.mock('../db', async () => {
 });
 
 import { createTask } from './tasks';
-import {
-  addToKanban,
-  setKanbanStatus,
-  removeFromKanban,
-  addToWeek,
-  setWeeklyDay,
-  removeFromWeek,
-} from './taskMembership';
+import { addToWeek, setWeeklyDay, removeFromWeek, setTaskArchived } from './taskMembership';
+import { upsertWeekTemplate } from './weekTemplates';
 import { INBOX_PROJECT_ID, INBOX_CONTAINER_ID } from '../inbox';
 import { db } from '../db';
 
-async function makeTask() {
-  return createTask({ title: 'T', projectId: INBOX_PROJECT_ID, containerId: INBOX_CONTAINER_ID });
+async function makeTask(title = 'T') {
+  return createTask({ title, projectId: INBOX_PROJECT_ID, containerId: INBOX_CONTAINER_ID });
 }
 
 describe('task membership helpers', () => {
-  it('adds to kanban with Todo default, updates status, and completes on Done', async () => {
-    const task = await makeTask();
-    await addToKanban(task.id);
-    expect((await db.tasks.get(task.id))?.kanban).toEqual({ status: 'Todo' });
-
-    await setKanbanStatus(task.id, 'Doing');
-    expect((await db.tasks.get(task.id))?.kanban).toEqual({ status: 'Doing' });
-    expect((await db.tasks.get(task.id))?.completed).toBe(false);
-
-    await setKanbanStatus(task.id, 'Done');
-    const done = await db.tasks.get(task.id);
-    expect(done?.kanban).toEqual({ status: 'Done' });
-    expect(done?.completed).toBe(true);
-    expect(done?.completedDate).not.toBeNull();
-
-    // Verify moving out of Done does not un-complete the task
-    await setKanbanStatus(task.id, 'Doing');
-    const afterExit = await db.tasks.get(task.id);
-    expect(afterExit?.kanban).toEqual({ status: 'Doing' });
-    expect(afterExit?.completed).toBe(true);
-    expect(afterExit?.completedDate).not.toBeNull();
-  });
-
-  it('removes kanban membership without touching weekly or completed', async () => {
-    const task = await makeTask();
-    await addToKanban(task.id);
-    await removeFromKanban(task.id);
-    const after = await db.tasks.get(task.id);
-    expect(after?.kanban).toBeNull();
-    expect(after?.completed).toBe(false);
-    expect(after?.weekly).toBeNull();
-  });
-
   it('adds to week with Unplanned default, updates day, and can be removed', async () => {
     const task = await makeTask();
     await addToWeek(task.id, '2026-W32');
@@ -70,5 +31,28 @@ describe('task membership helpers', () => {
 
     await removeFromWeek(task.id);
     expect((await db.tasks.get(task.id))?.weekly).toBeNull();
+  });
+
+  it('archives a repeating task, clearing weekly membership and removing its template', async () => {
+    const task = await makeTask();
+    await addToWeek(task.id, '2026-W32');
+    await upsertWeekTemplate({
+      taskId: task.id,
+      title: task.title,
+      projectId: task.projectId,
+      containerId: task.containerId,
+    });
+
+    await setTaskArchived(task.id, true);
+    const archived = await db.tasks.get(task.id);
+    expect(archived?.archived).toBe(true);
+    expect(archived?.weekly).toBeNull();
+    expect(await db.weekTemplates.where('taskId').equals(task.id).count()).toBe(0);
+
+    // Unarchive restores nothing.
+    await setTaskArchived(task.id, false);
+    const restored = await db.tasks.get(task.id);
+    expect(restored?.archived).toBe(false);
+    expect(restored?.weekly).toBeNull();
   });
 });

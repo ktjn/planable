@@ -16,6 +16,11 @@ import {
   addContainerToWeek,
   setContainerWeeklyDay,
   removeContainerFromWeek,
+  addContainerToKanban,
+  setContainerKanbanStatus,
+  removeContainerFromKanban,
+  setContainerArchived,
+  updateContainer,
 } from './containers';
 import { createProject } from './projects';
 import { createTask } from './tasks';
@@ -91,5 +96,63 @@ describe('container repository', () => {
     const container = await createContainer(project.id, 'Unscheduled');
     await setContainerWeeklyDay(container.id, 'Wed');
     expect((await db.containers.get(container.id))?.weekly).toBeNull();
+  });
+
+  it('adds a container to Kanban as Todo, updates status, and removes it', async () => {
+    const project = await createProject('K1');
+    const container = await createContainer(project.id, 'Stream');
+    await addContainerToKanban(container.id);
+    expect((await db.containers.get(container.id))?.kanban).toEqual({ status: 'Todo' });
+
+    await setContainerKanbanStatus(container.id, 'Done');
+    expect((await db.containers.get(container.id))?.kanban).toEqual({ status: 'Done' });
+
+    await removeContainerFromKanban(container.id);
+    expect((await db.containers.get(container.id))?.kanban).toBeNull();
+  });
+
+  it('Kanban Done does not touch child Task completion state', async () => {
+    const project = await createProject('K2');
+    const container = await createContainer(project.id, 'Stream2');
+    const child = await createTask({ title: 'Child', projectId: project.id, containerId: container.id });
+    await addContainerToKanban(container.id);
+    await setContainerKanbanStatus(container.id, 'Done');
+    const after = await db.tasks.get(child.id);
+    expect(after?.completed).toBe(false);
+    expect(after?.completedDate).toBeNull();
+  });
+
+  it('archiving a container clears weekly and kanban but leaves child tasks alone', async () => {
+    const project = await createProject('A1');
+    const container = await createContainer(project.id, 'ToArchive');
+    const child = await createTask({ title: 'Child', projectId: project.id, containerId: container.id });
+    await addContainerToWeek(container.id, '2026-W32');
+    await addContainerToKanban(container.id);
+
+    await setContainerArchived(container.id, true);
+    const archived = (await db.containers.get(container.id))!;
+    expect(archived.archived).toBe(true);
+    expect(archived.weekly).toBeNull();
+    expect(archived.kanban).toBeNull();
+
+    const afterChild = await db.tasks.get(child.id);
+    expect(afterChild?.archived).toBe(false);
+    expect(afterChild?.containerId).toBe(container.id);
+
+    await setContainerArchived(container.id, false);
+    expect((await db.containers.get(container.id))?.archived).toBe(false);
+  });
+
+  it('refuses to archive the Inbox container', async () => {
+    await expect(setContainerArchived(INBOX_CONTAINER_ID, true)).rejects.toThrow();
+  });
+
+  it('updates a container name and labels', async () => {
+    const project = await createProject('L1');
+    const container = await createContainer(project.id, 'Original');
+    await updateContainer(container.id, { name: 'Renamed', labels: ['a', 'b'] });
+    const updated = (await db.containers.get(container.id))!;
+    expect(updated.name).toBe('Renamed');
+    expect(updated.labels).toEqual(['a', 'b']);
   });
 });

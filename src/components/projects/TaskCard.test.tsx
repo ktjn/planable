@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('../../db/db', async () => {
@@ -7,51 +8,52 @@ vi.mock('../../db/db', async () => {
 });
 
 import { TaskCard } from './TaskCard';
-import type { Task } from '../../db/schema';
+import type { Task, Label } from '../../db/schema';
 
 const baseTask: Task = {
   id: 't1',
   title: 'Badged task',
   description: '',
-  labels: [],
+  labels: ['l1'],
   projectId: 'p',
   containerId: 'c',
   completed: false,
   completedDate: null,
-  kanban: { status: 'Doing' },
+  archived: false,
   weekly: { weekId: '2026-W32', day: 'Tue', repeatWeekly: false },
 };
 
+const label: Label = { id: 'l1', name: 'Security', color: '#ff0000' };
+const labelsById = new Map([['l1', label]]);
+
 describe('TaskCard membership badges', () => {
-  it('shows kanban and weekly badges when the task has that membership', () => {
-    render(<TaskCard task={baseTask} />);
-    expect(screen.getByText('Kanban: Doing')).toBeInTheDocument();
+  it('shows weekly badge and labels', () => {
+    const { queryByText } = render(<TaskCard task={baseTask} labelsById={labelsById} />);
     expect(screen.getByText('Week: Tue')).toBeInTheDocument();
+    expect(screen.getByText('Security')).toBeInTheDocument();
+    expect(queryByText(/Kanban:/)).not.toBeInTheDocument();
   });
 
   it('shows no badges when the task has no membership', () => {
-    render(<TaskCard task={{ ...baseTask, kanban: null, weekly: null }} />);
-    expect(screen.queryByText(/Kanban:/)).not.toBeInTheDocument();
+    render(<TaskCard task={{ ...baseTask, labels: [], weekly: null }} labelsById={new Map()} />);
     expect(screen.queryByText(/Week:/)).not.toBeInTheDocument();
   });
 });
 
-describe('TaskCard add-to buttons', () => {
-  it('shows both add buttons when the task has no membership', () => {
-    render(<TaskCard task={{ ...baseTask, kanban: null, weekly: null }} />);
-    expect(screen.getByText('Add to this week')).toBeInTheDocument();
-    expect(screen.getByText('Add to Kanban')).toBeInTheDocument();
-  });
+describe('TaskCard interactions', () => {
+  it('shows "Add to this week" only when not already scheduled', () => {
+    const { rerender } = render(<TaskCard task={baseTask} labelsById={labelsById} />);
+    expect(screen.queryByTitle('Add to this week')).not.toBeInTheDocument();
 
-  it('hides "Add to this week" when the task already has weekly membership', () => {
-    render(<TaskCard task={{ ...baseTask, kanban: null }} />);
-    expect(screen.queryByText('Add to this week')).not.toBeInTheDocument();
-    expect(screen.getByText('Add to Kanban')).toBeInTheDocument();
+    rerender(<TaskCard task={{ ...baseTask, weekly: null }} labelsById={labelsById} />);
+    expect(screen.getByTitle('Add to this week')).toBeInTheDocument();
   });
+});
 
-  it('hides "Add to Kanban" when the task already has kanban membership', () => {
-    render(<TaskCard task={{ ...baseTask, weekly: null }} />);
-    expect(screen.queryByText('Add to Kanban')).not.toBeInTheDocument();
-    expect(screen.getByText('Add to this week')).toBeInTheDocument();
+describe('TaskCard editing', () => {
+  it('opens the edit dialog on double-click', async () => {
+    render(<TaskCard task={baseTask} labelsById={labelsById} />);
+    await userEvent.dblClick(screen.getByText('Badged task'));
+    expect(await screen.findByText('Edit task')).toBeInTheDocument();
   });
 });

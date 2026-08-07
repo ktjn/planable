@@ -53,7 +53,7 @@ export function TaskDialog({
   }
 
   return (
-    <Dialog open>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{mode === 'edit' ? 'Edit task' : 'New task'}</DialogTitle>

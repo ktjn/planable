@@ -15,13 +15,16 @@ import { createContainer } from '../../db/repositories/containers';
 import { createTask } from '../../db/repositories/tasks';
 import { db } from '../../db/db';
 import { getCurrentWeekId } from '../../lib/week';
-import type { Container } from '../../db/schema';
+import type { Container, Label } from '../../db/schema';
 
 function renderContainer(container: Container) {
   render(
     <DndContext onDragEnd={() => {}}>
       <SortableContext items={[container.id]} strategy={rectSortingStrategy}>
-        <ContainerColumn container={container} />
+        <ContainerColumn
+          container={container}
+          labelsById={new Map<string, Label>()}
+        />
       </SortableContext>
     </DndContext>,
   );
@@ -35,7 +38,7 @@ describe('ContainerColumn drag-and-drop', () => {
 
     renderContainer(container);
 
-    const columnHeading = await screen.findByDisplayValue('Backlog');
+    const columnHeading = await screen.findByText('Backlog');
     expect(columnHeading.closest('[data-dnd-droppable]')).toBeInTheDocument();
     const taskRow = await screen.findByText('Movable task');
     expect(taskRow.closest('[data-dnd-draggable]')).toBeInTheDocument();

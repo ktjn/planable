@@ -9,16 +9,44 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { db } from '../../db/db';
-import { createInboxTask } from '../../db/repositories/tasks';
-import { addToKanban, setKanbanStatus } from '../../db/repositories/taskMembership';
+import { setContainerKanbanStatus } from '../../db/repositories/containers';
+import { listTasksByContainer, createTask } from '../../db/repositories/tasks';
+import { listLabels } from '../../db/repositories/labels';
 import { fireAndForget } from '../../lib/fireAndForget';
-import type { KanbanStatus } from '../../db/schema';
-import { KanbanSquare, Plus } from 'lucide-react';
+import type { Container, KanbanStatus, Label } from '../../db/schema';
+import { GripVertical, KanbanSquare, Plus } from 'lucide-react';
 import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
 import { AddToKanbanPicker } from './AddToKanbanPicker';
-import { QuickAddRow } from '../shared/QuickAddRow';
+import { EntityLabels } from '../shared/EntityLabels';
+import { ContainerDialog } from '../projects/ContainerDialog';
+
+function InlineQuickAdd({ onAdd, onClose }: { onAdd: (title: string) => Promise<void>; onClose: () => void }) {
+  const [title, setTitle] = useState('');
+  return (
+    <Input
+      autoFocus
+      placeholder="Type a title…"
+      value={title}
+      onChange={(e) => setTitle(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && title.trim()) {
+          const value = title;
+          setTitle('');
+          void onAdd(value.trim());
+        } else if (e.key === 'Escape') {
+          setTitle('');
+          onClose();
+        }
+      }}
+      onBlur={() => {
+        if (!title.trim()) onClose();
+      }}
+    />
+  );
+}
 
 const COLUMNS: KanbanStatus[] = ['Todo', 'Doing', 'Blocked', 'Done'];
 
@@ -29,35 +57,128 @@ const STATUS_ACCENT: Record<KanbanStatus, string> = {
   Done: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
 };
 
-function DraggableCard({ id, title }: { id: string; title: string }) {
-  const { setNodeRef, listeners, attributes, transform } = useDraggable({ id });
+function KanbanCard({
+  container,
+  projectName,
+  labelsById,
+  taskCount,
+}: {
+  container: Container;
+  projectName: string;
+  labelsById: Map<string, Label>;
+  taskCount: number;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
+  const { setNodeRef, setActivatorNodeRef, listeners, attributes, transform, isDragging } = useDraggable({
+    id: container.id,
+  });
+
   return (
-    <li
-      ref={setNodeRef}
-      data-dnd-draggable
-      {...listeners}
-      {...attributes}
-      style={{ transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined }}
-      className="cursor-grab rounded-lg border border-border/80 bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-all hover:border-primary/30 hover:shadow-md active:cursor-grabbing"
-    >
-      {title}
-    </li>
+    <>
+      <li
+        ref={setNodeRef}
+        data-dnd-draggable
+        onDoubleClick={() => setEditing(true)}
+        style={{ transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined }}
+        className={`flex flex-col gap-1.5 rounded-lg border border-border/80 bg-background px-3 py-2 text-sm text-foreground shadow-sm hover:border-primary/30 hover:shadow-md ${
+          isDragging ? 'opacity-50' : ''
+        }`}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <span className="block truncate font-medium">{container.name}</span>
+            <span className="block truncate text-xs text-muted-foreground">{projectName}</span>
+          </div>
+          <button
+            ref={setActivatorNodeRef}
+            aria-label={`Drag ${container.name}`}
+            className="shrink-0 cursor-grab touch-none text-muted-foreground/60 hover:text-muted-foreground active:cursor-grabbing"
+            {...listeners}
+            {...attributes}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        </div>
+        <EntityLabels labelIds={container.labels} labelsById={labelsById} />
+        <div className="flex items-center justify-between gap-2">
+          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+            {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
+          </span>
+          <button
+            aria-label={`Add task to ${container.name}`}
+            className="shrink-0 rounded px-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={(e) => {
+              e.stopPropagation();
+              setQuickOpen((v) => !v);
+            }}
+          >
+            +
+          </button>
+        </div>
+        {quickOpen && (
+          <InlineQuickAdd
+            onAdd={async (title) => {
+              await createTask({ title, projectId: container.projectId, containerId: container.id });
+            }}
+            onClose={() => setQuickOpen(false)}
+          />
+        )}
+      </li>
+      {editing && <ContainerDialog container={container} onClose={() => setEditing(false)} />}
+    </>
   );
 }
 
-function StatusColumn({ status, titles }: { status: KanbanStatus; titles: { id: string; title: string }[] }) {
+function ContainerList({
+  status,
+  projectById,
+}: {
+  status: KanbanStatus;
+  projectById: Map<string, { id: string; name: string }>;
+}) {
+  const containers = useLiveQuery(
+    () => db.containers.filter((c) => !c.archived && c.kanban?.status === status).sortBy('name'),
+    [status],
+    [],
+  );
+  const labels = useLiveQuery(listLabels, [], []);
+  const labelsById = useMemo(() => new Map(labels.map((l) => [l.id, l])), [labels]);
+  const taskCounts = useLiveQuery(
+    () => db.tasks.toArray().then((tasks) => {
+      const map = new Map<string, number>();
+      for (const t of tasks) map.set(t.containerId, (map.get(t.containerId) ?? 0) + 1);
+      return map;
+    }),
+    [],
+    new Map<string, number>(),
+  );
+
+  return (
+    <ul className="flex flex-col gap-1.5 p-2">
+      {containers.map((container) => (
+        <KanbanCard
+          key={container.id}
+          container={container}
+          projectName={projectById.get(container.projectId)?.name ?? ''}
+          labelsById={labelsById}
+          taskCount={taskCounts.get(container.id) ?? 0}
+        />
+      ))}
+    </ul>
+  );
+}
+
+function StatusColumn({ status }: { status: KanbanStatus }) {
   const { setNodeRef } = useDroppable({ id: status });
-
-  async function handleAdd(title: string) {
-    const task = await createInboxTask(title);
-    await addToKanban(task.id);
-    await setKanbanStatus(task.id, status);
-  }
-
+  const projects = useLiveQuery(() => db.projects.toArray(), [], []);
+  const projectById = useMemo(() => new Map((projects ?? []).map((p) => [p.id, p])), [projects]);
   return (
     <section
       ref={setNodeRef}
-      className="flex w-56 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm"
+      data-dnd-droppable
+      className="flex w-60 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm"
     >
       <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2.5">
         <div className="flex items-center gap-1.5">
@@ -66,24 +187,13 @@ function StatusColumn({ status, titles }: { status: KanbanStatus; titles: { id: 
           </span>
           <h3 className="text-sm font-semibold">{status}</h3>
         </div>
-        <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs text-muted-foreground tabular-nums">
-          {titles.length}
-        </span>
       </div>
-      <ul className="flex flex-col gap-1.5 p-2">
-        {titles.map((t) => (
-          <DraggableCard key={t.id} id={t.id} title={t.title} />
-        ))}
-      </ul>
-      <div className="p-2 pt-0">
-        <QuickAddRow onAdd={handleAdd} />
-      </div>
+      <ContainerList status={status} projectById={projectById} />
     </section>
   );
 }
 
 export function KanbanView() {
-  const tasks = useLiveQuery(() => db.tasks.filter((t) => t.kanban !== null).toArray(), [], []);
   const [pickerOpen, setPickerOpen] = useState(false);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -93,7 +203,7 @@ export function KanbanView() {
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over) return;
-    fireAndForget(setKanbanStatus(String(active.id), over.id as KanbanStatus));
+    fireAndForget(setContainerKanbanStatus(String(active.id), over.id as KanbanStatus));
   }
 
   return (
@@ -105,23 +215,19 @@ export function KanbanView() {
           </div>
           <div>
             <h2 className="text-xl font-semibold tracking-tight">Kanban</h2>
-            <p className="text-sm text-muted-foreground">Drag cards between columns to track progress</p>
+            <p className="text-sm text-muted-foreground">Drag containers between columns to track work streams</p>
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
           <Plus />
-          Add existing task
+          Add existing container
         </Button>
       </div>
       {pickerOpen && <AddToKanbanPicker onClose={() => setPickerOpen(false)} />}
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="flex gap-4 overflow-x-auto pb-2">
           {COLUMNS.map((status) => (
-            <StatusColumn
-              key={status}
-              status={status}
-              titles={tasks.filter((t) => t.kanban?.status === status).map((t) => ({ id: t.id, title: t.title }))}
-            />
+            <StatusColumn key={status} status={status} />
           ))}
         </div>
       </DndContext>

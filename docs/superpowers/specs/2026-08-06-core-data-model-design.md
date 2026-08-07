@@ -33,22 +33,30 @@ storage, labels, import/export shape, non-goals, phases) still applies.
 ### Container
 
 - `id`, `projectId`, `name`, `order`
+- `labels: LabelId[]` — global labels assigned to the Container, rendered
+  wherever the Container appears (Project, Weekly, Kanban, All Containers,
+  Search), mirroring Task labels.
+- `archived: boolean` — independent, reversible archive state.
 - `weekly: { weekId: string, day: 'Unplanned' | 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' } | null`
   — optional. Presence means the Container is scheduled on a week's plan.
   Scheduling a Container represents planning time for that work area and does
   **not** change the weekly membership of any of its child Tasks.
+- `kanban: { status: 'Todo' | 'Doing' | 'Blocked' | 'Done' } | null`
+  — this is the **only** Kanban membership. Containers are the sole
+  Kanban-schedulable entity; Tasks never have Kanban membership.
 - Created, renamed, reordered, and deleted freely within a project.
 - Inbox has one implicit container; the user does not manage it directly.
-- Containers do **not** repeat weekly in this change.
+- Containers do **not** repeat weekly; nothing may auto-insert a Container
+  into a future week.
 
 ### Task
 
 The central entity. Every task belongs to exactly one project+container
-(Inbox counts). Kanban and Weekly Plan membership are independent,
-optional, additive states — not fields that always apply. Task and
-Container weekly membership are also independent of one another: a Task's
-Container may be scheduled without scheduling the Task itself, and vice
-versa.
+(Inbox counts). Weekly Plan membership is optional and additive; Tasks
+have **no Kanban membership** — only Containers appear on the Kanban
+board. Task and Container weekly membership are independent of one
+another: a Task's Container may be scheduled without scheduling the Task
+itself, and vice versa.
 
 - `id`
 - `title`
@@ -61,13 +69,12 @@ versa.
   A number rather than a `Date` object so it round-trips through
   `JSON.stringify`/`JSON.parse` without revival logic, needed for the
   plain JSON import/export described below.
-- `kanban: { status: 'Todo' | 'Doing' | 'Blocked' | 'Done' } | null`
-  — presence means the task is on the Kanban board
+- `archived: boolean` — independent, reversible archive state.
 - `weekly: { weekId: string, day: 'Unplanned' | 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri', repeatWeekly: boolean } | null`
   — presence means the task is on the current/a week's plan
 
-A task can have any combination of `kanban` and `weekly` set or unset,
-independent of one another and independent of its project/container.
+A task can have `weekly` set or unset independently of its
+project/container and of its Container's memberships.
 
 ### WeeklyTemplate
 
@@ -76,9 +83,39 @@ independent of one another and independent of its project/container.
 - On week start, each active template spawns a new Task instance with
   `weekly = { weekId: <new week>, day: 'Unplanned', repeatWeekly: true }`.
 
+### Archive
+
+`Container.archived` and `Task.archived` are independent, persistent
+flags. Archived entities are hidden from every normal view by default and
+remain discoverable through Search (ranked after active matches, marked
+clearly).
+
+- A Task is **effectively archived** for visibility whenever its parent
+  Container is archived, even if `task.archived === false`. Default views
+  hide such Tasks. Search marks them with an "Archived container" badge
+  rather than implying the Task itself was archived.
+- **Container visibility** `= !container.archived`
+- **Task visibility** `= !task.archived && !parentContainer.archived`
+- Archiving a Container clears its own `weekly` and `kanban` memberships
+  in one update but never mutates its child Tasks' archive flags.
+- Archiving a Task clears its `weekly` membership and removes its
+  `WeekTemplate` so it cannot recur while archived. Unarchiving restores
+  no prior placement.
+- The Inbox Container cannot be archived.
+- Moving `Container.kanban` to `Done` never completes/archives child Tasks.
+
 ### Label
 
 - `id`, `name`, `color` — global, unchanged from original plan.
+
+### Editing conventions
+
+Editing is opened by **double-clicking** an entity's body (Task card,
+Container card/header, Weekly rows, All Tasks/All Containers rows, Search
+results). A single click never opens an editor. Buttons, checkboxes,
+quick-add controls, and explicit drag handles call `stopPropagation()` as
+needed. Dragging starts only from an explicit drag handle, never the whole
+card surface.
 
 ## Views & Flows
 
@@ -112,26 +149,37 @@ and Task drags are fully independent. Neither drag touches `kanban` or
 ### Kanban
 
 Single global board (not per-project): Todo, Doing, Blocked, Done. Pools
-tasks from all projects, including Inbox. Each card shows its source
-project (or a label) as a small tag for context.
+**Containers** from all projects (excluding Inbox and archived
+Containers). Each card shows its source project, the Container's labels,
+its child Task count, an explicit drag handle, and a compact quick-add
+for a child Task. Double-clicking a card opens the Container editor.
 
-Two ways to add a task to Kanban, matching Weekly Plan:
-1. "Add to Kanban" action on a task card.
-2. A picker/drawer within the Kanban view.
+Tasks have no Kanban membership and no "Add to Kanban" action. There is
+no UI path that places a Task directly on the Kanban board.
 
-New Kanban membership defaults to `status: 'Todo'`. Dragging between
-columns only updates `kanban.status`. It never touches `weekly` or
-`completed`, except: dragging into `Done` also sets `completed = true`
-and `completedDate = now` (this is the one intentional cross-field
-effect, since "Done" on the Kanban board is the natural signal of
-completion).
+Two ways to add a Container to Kanban:
+1. From the Container editor outside Kanban is not required; the primary
+   path is the picker/drawer within the Kanban view, which searches
+   Containers.
+2. A picker/drawer within the Kanban view — searches non-archived,
+   non-scheduled Containers.
+
+New Container Kanban membership defaults to `status: 'Todo'`. Dragging
+between columns only updates `container.kanban.status`. It never touches
+`weekly`, `completed`, or any child Task state.
 
 ### Projects (including Inbox tab)
 
 Container-based board/list per project. This is where tasks are created
-and organized. Task cards show small badges when the task also has
-`kanban` and/or `weekly` membership, so the user can see at a glance that
-a task is "live" elsewhere without switching views.
+and organized. Task cards show small badges when the task has `weekly`
+membership (and its labels), so the user can see at a glance that a task
+is "live" elsewhere without switching views. Container column headers
+show the Container's labels and support double-click editing.
+
+Task creation inside a Container uses a title-only inline quick-add
+(`QuickAddRow`); Enter creates the Task in that Container and keeps the
+input ready for the next one. Full details are edited afterwards by
+double-clicking the created Task.
 
 Inbox appears as a pinned tab before regular project tabs. It is the
 default destination for quick-added tasks that aren't assigned a project
@@ -152,12 +200,17 @@ incidental side effect of rollover):
   to `Unplanned`. All child Tasks are preserved untouched.
 - **Return to project** — `container.weekly` is cleared (set to `null`).
 
+Archived Containers never appear in rollover, because archiving already
+cleared their `weekly` membership. Moving a Container never creates a
+template or auto-inserts anything into a future week — Containers cannot
+recur regardless of resolution.
+
 For every task with `weekly.weekId` equal to the closing week:
 - **Move to next week** — `weekly.weekId` advances, `day` resets to
   `Unplanned` (or is carried over — carrying the same weekday forward is
   acceptable too; implementation detail).
 - **Return to project** — `weekly` is cleared (set to `null`). Task keeps
-  whatever `kanban` state and project/container it already has.
+  whatever project/container it already has.
 - **Complete** — `completed = true`, `completedDate = now`, `weekly`
   cleared.
 - **Delete** — task is deleted entirely. Requires a confirmation step
@@ -171,10 +224,12 @@ is cleared.
 ## Storage & Import/Export
 
 Unchanged from the original plan: IndexedDB via Dexie, no backend, no
-auth. JSON export/import includes Projects, Containers, Tasks (with the
-new `kanban`/`weekly`/`completedDate` fields), Labels, Weekly Templates,
-and Settings. Inbox is implicit and does not need to be included as a
-Project record in export — it can be reconstructed on import.
+auth. JSON export/import includes Projects, Containers (with `labels`,
+`archived`, `weekly`, `kanban`), Tasks (with `archived`/`weekly`/
+`completedDate` — Tasks no longer carry a `kanban` field), Labels, Weekly
+Templates, and Settings. Inbox is implicit and does not need to be
+included as a Project record in export — it can be reconstructed on
+import.
 
 ## Error Handling
 
@@ -183,18 +238,26 @@ Project record in export — it can be reconstructed on import.
   is an implementation-planning detail, but data integrity rule is: no
   task may end up with a dangling `projectId`/`containerId`.
   - Deleting a Label: removed from any task's `labels[]`, no cascade.
-  - Deleting a task while it has `kanban` and/or `weekly` membership:
-    membership is simply discarded along with the task.
+  - Deleting a task while it has `weekly` membership (and possibly a
+    `WeekTemplate`): membership and template are discarded along with the
+    task.
+  - Deleting a Label: removed from any task's and Container's `labels[]`,
+    no cascade.
 
 ## Testing
 
-- Unit tests around task membership transitions (add/remove
-  Kanban/Weekly membership, drag-day/status updates, the Kanban→Done
-  completion side effect).
-- Unit tests for weekly rollover resolution paths (all four actions) and
-  template instance spawning.
-- Import/export round-trip test preserving all task fields including the
-  new membership objects.
+- Unit tests around Container Kanban membership transitions (add/remove
+  status, drag updates status only, no Task-completion side effect) and
+  Task Weekly membership (add/remove, day updates, repeat template).
+- Unit tests for archive/unarchive semantics, including membership
+  cleanup (Container clears weekly+kanban; Task clears weekly+template)
+  and Inbox-archive refusal.
+- Unit tests for default-view archive filtering and Search
+  active-before-archived ranking.
+- Unit tests for weekly rollover resolution paths (all actions), template
+  instance spawning, and Container non-recurrence.
+- Import/export round-trip test preserving Container labels/archive/
+  kanban and Task archive/weekly/completedDate fields.
 
 ## Scope / Phases
 
