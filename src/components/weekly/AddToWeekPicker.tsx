@@ -31,6 +31,8 @@ export function AddToWeekPicker({ onClose }: { onClose: () => void }) {
     [query, weekId],
     [],
   );
+  const projects = useLiveQuery(() => db.projects.toArray(), [], []);
+  const projectById = new Map((projects ?? []).map((p) => [p.id, p]));
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -44,19 +46,29 @@ export function AddToWeekPicker({ onClose }: { onClose: () => void }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <ul className="flex max-h-72 flex-col gap-1 overflow-y-auto">
+        <ul className="flex max-h-72 flex-col gap-1.5 overflow-y-auto">
           {results.map((task) => (
             <li key={task.id}>
               <button
-                className="w-full rounded-md px-2 py-1.5 text-left hover:bg-muted"
+                className="flex w-full items-center justify-between gap-2 rounded-lg border border-border/60 bg-background px-3 py-2 text-left text-sm shadow-sm transition-colors hover:border-primary/30 hover:bg-muted/40"
                 onClick={() => {
                   fireAndForget(addToWeek(task.id, weekId).then(onClose));
                 }}
               >
-                {task.title}
+                <span className="truncate">{task.title}</span>
+                {projectById.get(task.projectId) && (
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {projectById.get(task.projectId)!.name}
+                  </span>
+                )}
               </button>
             </li>
           ))}
+          {query.trim() && results.length === 0 && (
+            <li className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
+              No tasks match “{query}”.
+            </li>
+          )}
         </ul>
       </DialogContent>
     </Dialog>

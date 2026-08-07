@@ -18,13 +18,21 @@ import { setWeeklyDay } from '../../db/repositories/taskMembership';
 import { autoHandleClosingWeek } from '../../lib/rollover';
 import { fireAndForget } from '../../lib/fireAndForget';
 import type { WeekDay } from '../../db/schema';
-import { CalendarPlus, Plus } from 'lucide-react';
+import { CalendarDays, CalendarPlus, Plus } from 'lucide-react';
 import { Button } from '../../components/ui/button';
-import { Separator } from '../../components/ui/separator';
 import { AddToWeekPicker } from './AddToWeekPicker';
 import { WeekRolloverDialog } from './WeekRolloverDialog';
 
 const COLUMNS: WeekDay[] = ['Unplanned', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+
+const DAY_ACCENT: Record<WeekDay, string> = {
+  Unplanned: 'bg-muted text-muted-foreground',
+  Mon: 'bg-sky-500/15 text-sky-700 dark:text-sky-400',
+  Tue: 'bg-violet-500/15 text-violet-700 dark:text-violet-400',
+  Wed: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+  Thu: 'bg-amber-500/20 text-amber-700 dark:text-amber-400',
+  Fri: 'bg-rose-500/15 text-rose-700 dark:text-rose-400',
+};
 
 function DraggableTaskRow({ id, title }: { id: string; title: string }) {
   const { setNodeRef, listeners, attributes, transform } = useDraggable({ id });
@@ -35,7 +43,7 @@ function DraggableTaskRow({ id, title }: { id: string; title: string }) {
       {...listeners}
       {...attributes}
       style={{ transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined }}
-      className="cursor-grab py-1"
+      className="cursor-grab rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground shadow-sm transition-all hover:border-primary/30 hover:shadow-md active:cursor-grabbing"
     >
       {title}
     </li>
@@ -45,9 +53,22 @@ function DraggableTaskRow({ id, title }: { id: string; title: string }) {
 function DayColumn({ day, titles }: { day: WeekDay; titles: { id: string; title: string }[] }) {
   const { setNodeRef } = useDroppable({ id: day });
   return (
-    <section ref={setNodeRef} className="w-48 shrink-0 rounded-xl border bg-card p-2 shadow-sm">
-      <h3 className="mb-2 text-sm font-medium">{day}</h3>
-      <ul>
+    <section
+      ref={setNodeRef}
+      className="flex w-48 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm"
+    >
+      <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2.5">
+        <div className="flex items-center gap-1.5">
+          <span className={DAY_ACCENT[day]}>
+            <span className="block size-2 shrink-0 rounded-full bg-current" />
+          </span>
+          <h3 className="text-sm font-semibold">{day}</h3>
+        </div>
+        <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs text-muted-foreground tabular-nums">
+          {titles.length}
+        </span>
+      </div>
+      <ul className="flex flex-col gap-1.5 p-2">
         {titles.map((t) => (
           <DraggableTaskRow key={t.id} id={t.id} title={t.title} />
         ))}
@@ -85,12 +106,17 @@ export function WeeklyPlanView() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <div>
-          <h2 className="text-lg font-medium">Weekly Plan</h2>
-          <p className="text-sm text-muted-foreground">{getWeekLabel(weekId)}</p>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+            <CalendarDays className="size-5" />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">Weekly Plan</h2>
+            <p className="text-sm text-muted-foreground">{getWeekLabel(weekId)}</p>
+          </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
             <Plus />
             Add existing task
@@ -101,10 +127,9 @@ export function WeeklyPlanView() {
           </Button>
         </div>
       </div>
-      <Separator className="mb-4" />
       {pickerOpen && <AddToWeekPicker onClose={() => setPickerOpen(false)} />}
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <div className="flex gap-4">
+        <div className="flex gap-4 overflow-x-auto pb-2">
           {COLUMNS.map((day) => (
             <DayColumn
               key={day}

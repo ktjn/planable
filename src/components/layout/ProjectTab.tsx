@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
-import { GripVertical, type LucideIcon } from 'lucide-react';
+import { GripVertical, X, type LucideIcon } from 'lucide-react';
 import { renameProject } from '../../db/repositories/projects';
 import { fireAndForget } from '../../lib/fireAndForget';
 import type { Project } from '../../db/schema';
@@ -20,11 +20,16 @@ export function AppSettingsTab({
   return (
     <Button
       variant="ghost"
-      className={`h-9 px-3 ${active ? 'text-foreground' : 'text-muted-foreground'}`}
+      size="sm"
+      className={`h-8 rounded-lg px-2.5 ${
+        active
+          ? 'bg-secondary text-foreground shadow-sm'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+      }`}
       aria-current={active ? 'page' : undefined}
       onClick={onClick}
     >
-      {Icon && <Icon className="h-4 w-4" />}
+      {Icon && <Icon className="size-4" />}
       {label}
     </Button>
   );
@@ -53,22 +58,22 @@ export function ProjectTab({
     <div
       ref={setNodeRef}
       style={{ transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined }}
-      className={`flex items-center ${isDragging ? 'opacity-50' : ''}`}
+      className={`flex items-center rounded-lg ${isDragging ? 'opacity-50' : ''}`}
     >
       {!pinned && (
         <button
           ref={setActivatorNodeRef}
           aria-label={`Reorder ${project.name}`}
-          className="cursor-grab text-gray-400"
+          className="mr-0.5 cursor-grab touch-none text-muted-foreground/60 hover:text-muted-foreground"
           {...listeners}
           {...attributes}
         >
-          <GripVertical className="h-4 w-4" />
+          <GripVertical className="size-4" />
         </button>
       )}
       {editing ? (
         <input
-          className="h-8 rounded-md border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="h-7 rounded-md border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           defaultValue={project.name}
           autoFocus
           onBlur={(e) => {
@@ -88,26 +93,31 @@ export function ProjectTab({
       ) : (
         <Button
           variant="ghost"
-          className={`h-9 px-3 ${active ? 'text-foreground' : 'text-muted-foreground'} ${
-            pinned ? 'italic' : ''
-          }`}
+          size="sm"
+          className={`h-8 rounded-lg px-2.5 ${
+            active
+              ? 'bg-secondary text-foreground shadow-sm'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          } ${pinned ? 'font-medium' : ''}`}
           aria-current={active ? 'page' : undefined}
           onClick={onSelect}
           onDoubleClick={() => {
             if (!pinned) setEditing(true);
           }}
         >
+          {pinned && <span className="size-1.5 shrink-0 rounded-full bg-primary/70" />}
           {project.name}
         </Button>
       )}
       {!pinned && onDelete && (
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon-xs"
           aria-label={`Delete ${project.name}`}
+          className="text-muted-foreground/60 hover:text-destructive"
           onClick={onDelete}
         >
-          ×
+          <X />
         </Button>
       )}
     </div>

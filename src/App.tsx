@@ -57,9 +57,9 @@ export default function App() {
   }
 
   return (
-    <div>
+    <div className="flex min-h-dvh flex-col">
       <NavTabs active={active} onSelect={setActive} />
-      <main className="p-4">
+      <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 md:px-6">
         {active.kind === 'weekly' && <WeeklyPlanView />}
         {active.kind === 'kanban' && <KanbanView />}
         {active.kind === 'labels' && <LabelManager />}

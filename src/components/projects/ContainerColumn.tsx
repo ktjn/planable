@@ -23,21 +23,23 @@ export function ContainerColumn({ container }: { container: Container }) {
       data-dnd-droppable
       data-dnd-draggable
       style={{ transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined }}
-      className={`w-64 shrink-0 rounded-xl border bg-card p-2 shadow-sm ${isDragging ? 'opacity-50' : ''}`}
+      className={`flex w-64 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm transition-shadow ${
+        isDragging ? 'opacity-50' : 'hover:shadow-md'
+      }`}
     >
-      <div className="mb-2 flex items-center justify-between gap-1">
+      <div className="flex items-center justify-between gap-1 border-b border-border/60 px-2 py-2">
         <div className="flex min-w-0 flex-1 items-center gap-1">
           <button
             ref={setActivatorNodeRef}
             aria-label={`Reorder ${container.name}`}
-            className="shrink-0 cursor-grab touch-none text-muted-foreground"
+            className="shrink-0 cursor-grab touch-none text-muted-foreground/60 hover:text-muted-foreground"
             {...listeners}
             {...attributes}
           >
             <GripVertical className="h-4 w-4" />
           </button>
           <Input
-            className="h-7 border-transparent font-medium focus-visible:border-ring"
+            className="h-7 border-transparent bg-transparent font-semibold focus-visible:border-ring"
             defaultValue={container.name}
             aria-label={`Rename ${container.name}`}
             onBlur={(e) => {
@@ -50,23 +52,31 @@ export function ContainerColumn({ container }: { container: Container }) {
             }}
           />
         </div>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={`Delete ${container.name}`}
-          onClick={() => fireAndForget(deleteContainer(container.id))}
-        >
-          ×
-        </Button>
+        <span className="ml-1 flex items-center gap-1">
+          <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs text-muted-foreground tabular-nums">
+            {tasks.length}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Delete ${container.name}`}
+            className="text-muted-foreground/60 hover:text-destructive"
+            onClick={() => fireAndForget(deleteContainer(container.id))}
+          >
+            ×
+          </Button>
+        </span>
       </div>
-      <ul>
+      <ul className="flex flex-col gap-1 p-1.5">
         {tasks.map((task) => (
           <li key={task.id}>
             <TaskCard task={task} />
           </li>
         ))}
       </ul>
-      <AddTaskButton projectId={container.projectId} containerId={container.id} />
+      <div className="p-1.5 pt-0">
+        <AddTaskButton projectId={container.projectId} containerId={container.id} />
+      </div>
     </div>
   );
 }
@@ -77,7 +87,7 @@ function AddTaskButton({ projectId, containerId }: { projectId: string; containe
     <>
       <Button
         variant="ghost"
-        className="mt-1 w-full justify-start text-muted-foreground"
+        className="w-full justify-start rounded-md border border-dashed border-border/70 text-muted-foreground hover:border-primary/40 hover:text-foreground"
         size="sm"
         onClick={() => setOpen(true)}
       >

@@ -14,11 +14,18 @@ import { db } from '../../db/db';
 import { setKanbanStatus } from '../../db/repositories/taskMembership';
 import { fireAndForget } from '../../lib/fireAndForget';
 import type { KanbanStatus } from '../../db/schema';
-import { Plus } from 'lucide-react';
+import { KanbanSquare, Plus } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { AddToKanbanPicker } from './AddToKanbanPicker';
 
 const COLUMNS: KanbanStatus[] = ['Todo', 'Doing', 'Blocked', 'Done'];
+
+const STATUS_ACCENT: Record<KanbanStatus, string> = {
+  Todo: 'bg-slate-500/15 text-slate-700 dark:text-slate-400',
+  Doing: 'bg-sky-500/15 text-sky-700 dark:text-sky-400',
+  Blocked: 'bg-rose-500/15 text-rose-700 dark:text-rose-400',
+  Done: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+};
 
 function DraggableCard({ id, title }: { id: string; title: string }) {
   const { setNodeRef, listeners, attributes, transform } = useDraggable({ id });
@@ -29,7 +36,7 @@ function DraggableCard({ id, title }: { id: string; title: string }) {
       {...listeners}
       {...attributes}
       style={{ transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined }}
-      className="cursor-grab py-1"
+      className="cursor-grab rounded-lg border border-border/80 bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-all hover:border-primary/30 hover:shadow-md active:cursor-grabbing"
     >
       {title}
     </li>
@@ -39,9 +46,22 @@ function DraggableCard({ id, title }: { id: string; title: string }) {
 function StatusColumn({ status, titles }: { status: KanbanStatus; titles: { id: string; title: string }[] }) {
   const { setNodeRef } = useDroppable({ id: status });
   return (
-    <section ref={setNodeRef} className="w-56 shrink-0 rounded border border-gray-200 p-2">
-      <h3 className="mb-2 font-medium">{status}</h3>
-      <ul>
+    <section
+      ref={setNodeRef}
+      className="flex w-56 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm"
+    >
+      <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2.5">
+        <div className="flex items-center gap-1.5">
+          <span className={STATUS_ACCENT[status]}>
+            <span className="block size-2 shrink-0 rounded-full bg-current" />
+          </span>
+          <h3 className="text-sm font-semibold">{status}</h3>
+        </div>
+        <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs text-muted-foreground tabular-nums">
+          {titles.length}
+        </span>
+      </div>
+      <ul className="flex flex-col gap-1.5 p-2">
         {titles.map((t) => (
           <DraggableCard key={t.id} id={t.id} title={t.title} />
         ))}
@@ -66,13 +86,24 @@ export function KanbanView() {
 
   return (
     <div>
-      <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
-        <Plus />
-        Add existing task
-      </Button>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+            <KanbanSquare className="size-5" />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">Kanban</h2>
+            <p className="text-sm text-muted-foreground">Drag cards between columns to track progress</p>
+          </div>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
+          <Plus />
+          Add existing task
+        </Button>
+      </div>
       {pickerOpen && <AddToKanbanPicker onClose={() => setPickerOpen(false)} />}
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <div className="mt-4 flex gap-4">
+        <div className="flex gap-4 overflow-x-auto pb-2">
           {COLUMNS.map((status) => (
             <StatusColumn
               key={status}

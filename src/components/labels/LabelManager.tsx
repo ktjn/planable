@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Tags, Trash2 } from 'lucide-react';
 import { listLabels, createLabel, updateLabel, deleteLabel } from '../../db/repositories/labels';
 import { fireAndForget } from '../../lib/fireAndForget';
 import { Button } from '../../components/ui/button';
@@ -14,10 +14,18 @@ export function LabelManager() {
 
   return (
     <div className="max-w-xl">
-      <h2 className="mb-4 text-lg font-medium">Labels</h2>
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-5 flex items-center gap-3">
+        <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+          <Tags className="size-4" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Labels</h2>
+          <p className="text-sm text-muted-foreground">Color-coded tags applied to tasks</p>
+        </div>
+      </div>
+      <div className="mb-6 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3 shadow-sm">
         <Input
-          className="w-48"
+          className="w-44 flex-1"
           placeholder="Label name"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -27,7 +35,13 @@ export function LabelManager() {
             }
           }}
         />
-        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-10 cursor-pointer rounded border" />
+        <input
+          type="color"
+          value={color}
+          onChange={(e) => setColor(e.target.value)}
+          aria-label="Label color"
+          className="h-8 w-10 cursor-pointer rounded-lg border border-input bg-transparent p-0.5"
+        />
         <Button
           onClick={async () => {
             if (!name.trim()) return;
