@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/db';
-import { addToKanban } from '../../db/repositories/taskMembership';
+import { addContainerToKanban } from '../../db/repositories/containers';
 import { fireAndForget } from '../../lib/fireAndForget';
 import {
   Dialog,
@@ -15,9 +15,14 @@ export function AddToKanbanPicker({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState('');
   const results = useLiveQuery(
     () =>
-      db.tasks
+      db.containers
         .filter(
-          (t) => t.kanban === null && t.title.toLowerCase().includes(query.toLowerCase()) && query.trim().length > 0,
+          (c) =>
+            !c.archived &&
+            c.kanban === null &&
+            c.id !== 'inbox-container' &&
+            c.name.toLowerCase().includes(query.toLowerCase()) &&
+            query.trim().length > 0,
         )
         .toArray(),
     [query],
@@ -30,27 +35,27 @@ export function AddToKanbanPicker({ onClose }: { onClose: () => void }) {
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add task to Kanban</DialogTitle>
+          <DialogTitle>Add container to Kanban</DialogTitle>
         </DialogHeader>
         <Input
           autoFocus
-          placeholder="Search tasks"
+          placeholder="Search containers"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
         <ul className="flex max-h-72 flex-col gap-1.5 overflow-y-auto">
-          {results.map((task) => (
-            <li key={task.id}>
+          {results.map((container) => (
+            <li key={container.id}>
               <button
                 className="flex w-full items-center justify-between gap-2 rounded-lg border border-border/60 bg-background px-3 py-2 text-left text-sm shadow-sm transition-colors hover:border-primary/30 hover:bg-muted/40"
                 onClick={() => {
-                  fireAndForget(addToKanban(task.id).then(onClose));
+                  fireAndForget(addContainerToKanban(container.id).then(onClose));
                 }}
               >
-                <span className="truncate">{task.title}</span>
-                {projectById.get(task.projectId) && (
+                <span className="truncate">{container.name}</span>
+                {projectById.get(container.projectId) && (
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {projectById.get(task.projectId)!.name}
+                    {projectById.get(container.projectId)!.name}
                   </span>
                 )}
               </button>
@@ -58,7 +63,7 @@ export function AddToKanbanPicker({ onClose }: { onClose: () => void }) {
           ))}
           {query.trim() && results.length === 0 && (
             <li className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
-              No tasks match “{query}”.
+              No containers match “{query}”.
             </li>
           )}
         </ul>

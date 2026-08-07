@@ -14,5 +14,8 @@ export const INBOX_CONTAINER: Container = {
   projectId: INBOX_PROJECT_ID,
   name: 'Inbox',
   order: 0,
+  labels: [],
+  archived: false,
   weekly: null,
+  kanban: null,
 };

@@ -1,5 +1,5 @@
 import { db } from '../db';
-import type { Container, WeekDay } from '../schema';
+import type { Container, KanbanStatus, WeekDay } from '../schema';
 import { INBOX_CONTAINER_ID, INBOX_PROJECT_ID } from '../inbox';
 
 export async function listContainersByProject(projectId: string): Promise<Container[]> {
@@ -26,13 +26,29 @@ export async function removeContainerFromWeek(containerId: string): Promise<void
 
 export async function createContainer(projectId: string, name: string): Promise<Container> {
   const count = await db.containers.where('projectId').equals(projectId).count();
-  const container: Container = { id: crypto.randomUUID(), projectId, name, order: count, weekly: null };
+  const container: Container = {
+    id: crypto.randomUUID(),
+    projectId,
+    name,
+    order: count,
+    labels: [],
+    archived: false,
+    weekly: null,
+    kanban: null,
+  };
   await db.containers.add(container);
   return container;
 }
 
+export async function updateContainer(
+  id: string,
+  changes: Partial<Pick<Container, 'name' | 'labels'>>,
+): Promise<void> {
+  await db.containers.update(id, changes);
+}
+
 export async function renameContainer(id: string, name: string): Promise<void> {
-  await db.containers.update(id, { name });
+  await updateContainer(id, { name });
 }
 
 export async function reorderContainers(projectId: string, orderedIds: string[]): Promise<void> {
@@ -53,5 +69,36 @@ export async function deleteContainer(id: string): Promise<void> {
       ),
     );
     await db.containers.delete(id);
+  });
+}
+
+export async function addContainerToKanban(containerId: string): Promise<void> {
+  await db.containers.update(containerId, { kanban: { status: 'Todo' } });
+}
+
+export async function setContainerKanbanStatus(
+  containerId: string,
+  status: KanbanStatus,
+): Promise<void> {
+  await db.containers.update(containerId, { kanban: { status } });
+}
+
+export async function removeContainerFromKanban(containerId: string): Promise<void> {
+  await db.containers.update(containerId, { kanban: null });
+}
+
+export async function setContainerArchived(containerId: string, archived: boolean): Promise<void> {
+  if (containerId === INBOX_CONTAINER_ID) {
+    throw new Error('Cannot archive the Inbox container');
+  }
+  await db.transaction('rw', db.containers, async () => {
+    const container = await db.containers.get(containerId);
+    if (!container) return;
+    const changes: Partial<Container> = { archived };
+    if (archived) {
+      changes.weekly = null;
+      changes.kanban = null;
+    }
+    await db.containers.update(containerId, changes);
   });
 }

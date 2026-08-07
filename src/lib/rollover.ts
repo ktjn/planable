@@ -46,7 +46,7 @@ export async function autoHandleClosingWeek(weekId: string): Promise<void> {
             containerId: template.containerId,
             completed: false,
             completedDate: null,
-            kanban: null,
+            archived: false,
             weekly: { weekId: nextWeekId, day: 'Unplanned' as WeekDay, repeatWeekly: true },
           });
         }

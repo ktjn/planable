@@ -18,6 +18,6 @@ describe('ProjectView', () => {
     await userEvent.type(screen.getByPlaceholderText('New container name'), 'Backlog');
     await userEvent.click(screen.getByText('Add container'));
 
-    expect(await screen.findByDisplayValue('Backlog')).toBeInTheDocument();
+    expect(await screen.findByText('Backlog')).toBeInTheDocument();
   });
 });

@@ -21,7 +21,10 @@ export interface Container {
   projectId: string;
   name: string;
   order: number;
+  labels: string[];
+  archived: boolean;
   weekly: WeeklyMembership | null;
+  kanban: KanbanMembership | null;
 }
 
 export interface Label {
@@ -43,7 +46,7 @@ export interface Task {
   containerId: string;
   completed: boolean;
   completedDate: number | null;
-  kanban: KanbanMembership | null;
+  archived: boolean;
   weekly: WeeklyTaskMembership | null;
 }
 

@@ -1,22 +1,23 @@
 import { db } from '../db';
-import type { KanbanStatus, WeekDay } from '../schema';
-import { setTaskCompleted } from './tasks';
+import type { WeekDay } from '../schema';
 import { getActiveWeekId } from '../../lib/activeWeek';
 import { deleteWeekTemplate, upsertWeekTemplate } from './weekTemplates';
 
-export async function addToKanban(taskId: string): Promise<void> {
-  await db.tasks.update(taskId, { kanban: { status: 'Todo' } });
-}
-
-export async function setKanbanStatus(taskId: string, status: KanbanStatus): Promise<void> {
-  await db.tasks.update(taskId, { kanban: { status } });
-  if (status === 'Done') {
-    await setTaskCompleted(taskId, true);
-  }
-}
-
-export async function removeFromKanban(taskId: string): Promise<void> {
-  await db.tasks.update(taskId, { kanban: null });
+/**
+ * Archives a Task, clearing its Weekly membership and removing any repeating
+ * template so it cannot recur while archived. Unarchiving restores nothing.
+ */
+export async function setTaskArchived(taskId: string, archived: boolean): Promise<void> {
+  await db.transaction('rw', db.tasks, db.weekTemplates, async () => {
+    const task = await db.tasks.get(taskId);
+    if (!task) return;
+    const changes: { archived: boolean; weekly?: null } = { archived };
+    if (archived) {
+      changes.weekly = null;
+      await deleteWeekTemplate(taskId);
+    }
+    await db.tasks.update(taskId, changes);
+  });
 }
 
 export async function addToWeek(taskId: string, weekId?: string): Promise<void> {

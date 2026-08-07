@@ -29,22 +29,30 @@ export function AddToWeekPicker({ onClose }: { onClose: () => void }) {
   const weekId =
     (typeof activeWeekSetting?.value === 'string' && activeWeekSetting.value) || getCurrentWeekId();
   const q = query.trim().toLowerCase();
+  const containers = useLiveQuery(() => db.containers.toArray(), [], []);
+  const containerById = new Map((containers ?? []).map((c) => [c.id, c]));
 
   const taskResults = useLiveQuery(
     () =>
       db.tasks
         .filter(
-          (t) => t.weekly?.weekId !== weekId && t.title.toLowerCase().includes(q) && q.length > 0,
+          (t) =>
+            t.weekly?.weekId !== weekId &&
+            !t.archived &&
+            !containerById.get(t.containerId)?.archived &&
+            t.title.toLowerCase().includes(q) &&
+            q.length > 0,
         )
         .toArray(),
-    [q, weekId],
+    [q, weekId, containers],
     [],
   );
   const containerResults = useLiveQuery(
     () =>
       db.containers
         .filter(
-          (c) => c.weekly?.weekId !== weekId && c.name.toLowerCase().includes(q) && q.length > 0,
+          (c) =>
+            !c.archived && c.weekly?.weekId !== weekId && c.name.toLowerCase().includes(q) && q.length > 0,
         )
         .toArray(),
     [q, weekId],

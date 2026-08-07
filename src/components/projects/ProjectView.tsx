@@ -18,10 +18,15 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Folder, Plus } from 'lucide-react';
 import { ContainerColumn } from './ContainerColumn';
+import { listLabels } from '../../db/repositories/labels';
+import { isContainerVisible } from '../../lib/entityVisibility';
 
 export function ProjectView({ projectId }: { projectId: string }) {
   const containers = useLiveQuery(() => listContainersByProject(projectId), [projectId], []);
   const project = useLiveQuery(() => db.projects.get(projectId), [projectId]);
+  const labels = useLiveQuery(listLabels, [], []);
+  const labelsById = new Map((labels ?? []).map((l) => [l.id, l]));
+  const visibleContainers = (containers ?? []).filter(isContainerVisible);
   const [newName, setNewName] = useState('');
   const [order, setOrder] = useState<string[]>([]);
   const sensors = useSensors(
@@ -29,18 +34,18 @@ export function ProjectView({ projectId }: { projectId: string }) {
     useSensor(KeyboardSensor),
   );
 
-  const ids = order.length === containers.length ? order : containers.map((c) => c.id);
+  const ids = order.length === visibleContainers.length ? order : visibleContainers.map((c) => c.id);
   const sorted = ids
-    .map((id) => containers.find((c) => c.id === id))
+    .map((id) => visibleContainers.find((c) => c.id === id))
     .filter((c): c is NonNullable<typeof c> => Boolean(c));
 
   function handleDragOver(event: DragOverEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const activeId = String(active.id);
-    if (!containers.some((c) => c.id === activeId)) return;
+    if (!visibleContainers.some((c) => c.id === activeId)) return;
     setOrder((prev) => {
-      const base = prev.length === containers.length ? prev : containers.map((c) => c.id);
+      const base = prev.length === visibleContainers.length ? prev : visibleContainers.map((c) => c.id);
       const oldIndex = base.indexOf(activeId);
       const newIndex = base.indexOf(String(over.id));
       if (oldIndex < 0 || newIndex < 0) return prev;
@@ -52,8 +57,9 @@ export function ProjectView({ projectId }: { projectId: string }) {
     const { active, over } = event;
     if (!over) return;
     const activeId = String(active.id);
-    if (containers.some((c) => c.id === activeId)) {
-      const orderedIds = order.length === containers.length ? order : containers.map((c) => c.id);
+    if (visibleContainers.some((c) => c.id === activeId)) {
+      const orderedIds =
+        order.length === visibleContainers.length ? order : visibleContainers.map((c) => c.id);
       fireAndForget(reorderContainers(projectId, orderedIds));
       return;
     }
@@ -75,7 +81,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
           <div>
             <h2 className="text-xl font-semibold tracking-tight">{project?.name ?? 'Project'}</h2>
             <p className="text-sm text-muted-foreground">
-              {containers.length} {containers.length === 1 ? 'container' : 'containers'}
+              {visibleContainers.length} {visibleContainers.length === 1 ? 'container' : 'containers'}
             </p>
           </div>
         </div>
@@ -95,7 +101,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
           </Button>
         </div>
       </div>
-      {containers.length === 0 && (
+      {visibleContainers.length === 0 && (
         <div className="rounded-xl border border-dashed border-border bg-muted/30 px-6 py-12 text-center">
           <p className="text-sm text-muted-foreground">
             No containers yet — create one above to start organizing tasks.
@@ -106,7 +112,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
         <SortableContext items={ids} strategy={rectSortingStrategy}>
           <div className="flex items-start gap-4 overflow-x-auto pb-2">
             {sorted.map((container) => (
-              <ContainerColumn key={container.id} container={container} />
+              <ContainerColumn key={container.id} container={container} labelsById={labelsById} />
             ))}
           </div>
         </SortableContext>

@@ -11,7 +11,7 @@ import { INBOX_PROJECT_ID, INBOX_CONTAINER_ID } from '../db/inbox';
 import { createTask, setTaskCompleted } from '../db/repositories/tasks';
 import { addToWeek, setTaskRepeatWeekly, setWeeklyDay } from '../db/repositories/taskMembership';
 import { createProject } from '../db/repositories/projects';
-import { createContainer, addContainerToWeek, setContainerWeeklyDay } from '../db/repositories/containers';
+import { createContainer, addContainerToWeek, setContainerWeeklyDay, setContainerArchived } from '../db/repositories/containers';
 import {
   autoHandleClosingWeek,
   getUnresolvedTasks,
@@ -159,5 +159,29 @@ describe('rollover', () => {
     expect(updated.projectId).toBe(project.id);
     expect((await db.tasks.get(task.id))!).toBeDefined();
     expect(await db.containers.get(container.id)).toBeDefined();
+  });
+
+  it('archived containers are never offered in rollover because archiving clears weekly', async () => {
+    const project = await createProject('Eng');
+    const container = await makeWeeklyContainer(project.id, 'Archived', '2026-W32');
+    await setContainerArchived(container.id, true);
+
+    const unresolved = await getUnresolvedContainers('2026-W32');
+    expect(unresolved.map((c) => c.id)).not.toContain(container.id);
+  });
+
+  it('container resolution never imposes recurrence or spawns a new container', async () => {
+    const project = await createProject('Eng');
+    const container = await makeWeeklyContainer(project.id, 'Recur', '2026-W32');
+    const countBefore = await db.containers.count();
+
+    // No template is ever created for a Container, and moving it to the next
+    // week only edits the one record's membership.
+    await resolveContainer(container.id, 'move');
+    expect(await db.weekTemplates.count()).toBe(0);
+
+    const moved = (await db.containers.get(container.id))!;
+    expect(moved.weekly?.weekId).toBe('2026-W33');
+    expect(await db.containers.count()).toBe(countBefore);
   });
 });

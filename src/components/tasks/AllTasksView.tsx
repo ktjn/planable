@@ -1,14 +1,17 @@
 // src/components/tasks/AllTasksView.tsx
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ListChecks } from 'lucide-react';
 import { db } from '../../db/db';
 import { setTaskCompleted } from '../../db/repositories/tasks';
+import { listLabels } from '../../db/repositories/labels';
 import { fireAndForget } from '../../lib/fireAndForget';
+import { isTaskVisible } from '../../lib/entityVisibility';
 import type { Task } from '../../db/schema';
 import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
 import { TaskDialog } from '../projects/TaskDialog';
+import { EntityLabels } from '../shared/EntityLabels';
 
 export function AllTasksView() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -18,7 +21,15 @@ export function AllTasksView() {
     [],
   );
   const projects = useLiveQuery(() => db.projects.toArray(), [], []);
-  const projectById = new Map((projects ?? []).map((p) => [p.id, p]));
+  const containers = useLiveQuery(() => db.containers.toArray(), [], []);
+  const labels = useLiveQuery(listLabels, [], []);
+  const projectById = useMemo(() => new Map((projects ?? []).map((p) => [p.id, p])), [projects]);
+  const containerById = useMemo(
+    () => new Map((containers ?? []).map((c) => [c.id, c])),
+    [containers],
+  );
+  const labelsById = useMemo(() => new Map((labels ?? []).map((l) => [l.id, l])), [labels]);
+  const visibleTasks = (tasks ?? []).filter((t) => isTaskVisible(t, containerById));
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -32,33 +43,31 @@ export function AllTasksView() {
         </div>
       </div>
       <ul className="flex flex-col gap-1.5">
-        {tasks.map((task) => (
+        {visibleTasks.map((task) => (
           <li
             key={task.id}
+            onDoubleClick={() => setEditingTask(task)}
             className="flex items-center gap-2 rounded-xl border border-border/70 bg-card px-3 py-2.5 shadow-sm"
           >
             <Checkbox
               checked={task.completed}
               aria-label={`Toggle completed for ${task.title}`}
               onCheckedChange={(checked) => fireAndForget(setTaskCompleted(task.id, checked))}
+              onClick={(e) => e.stopPropagation()}
             />
             <button
               className={`min-w-0 flex-1 truncate text-left text-sm ${
                 task.completed ? 'text-muted-foreground line-through' : 'text-foreground'
               }`}
-              onClick={() => setEditingTask(task)}
+              onClick={(e) => e.stopPropagation()}
             >
               {task.title}
             </button>
+            <EntityLabels labelIds={task.labels} labelsById={labelsById} />
             {projectById.get(task.projectId) && (
               <span className="shrink-0 text-xs text-muted-foreground">
                 {projectById.get(task.projectId)!.name}
               </span>
-            )}
-            {task.kanban && (
-              <Badge variant="secondary" className="shrink-0">
-                Kanban: {task.kanban.status}
-              </Badge>
             )}
             {task.weekly && (
               <Badge variant="secondary" className="shrink-0">
@@ -67,7 +76,7 @@ export function AllTasksView() {
             )}
           </li>
         ))}
-        {tasks.length === 0 && (
+        {visibleTasks.length === 0 && (
           <li className="py-10 text-center text-sm text-muted-foreground">No tasks yet.</li>
         )}
       </ul>

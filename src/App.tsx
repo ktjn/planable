@@ -5,6 +5,7 @@ import { LabelManager } from './components/labels/LabelManager';
 import { WeeklyPlanView } from './components/weekly/WeeklyPlanView';
 import { KanbanView } from './components/kanban/KanbanView';
 import { AllTasksView } from './components/tasks/AllTasksView';
+import { AllContainersView } from './components/containers/AllContainersView';
 import { SearchView } from './components/search/SearchView';
 import { Settings } from './components/settings/Settings';
 import { useKeyboardShortcuts } from './lib/useKeyboardShortcuts';
@@ -64,6 +65,7 @@ export default function App() {
         {active.kind === 'weekly' && <WeeklyPlanView />}
         {active.kind === 'kanban' && <KanbanView />}
         {active.kind === 'all-tasks' && <AllTasksView />}
+        {active.kind === 'all-containers' && <AllContainersView />}
         {active.kind === 'labels' && <LabelManager />}
         {active.kind === 'search' && <SearchView onOpenTask={openTaskInProject} />}
         {active.kind === 'settings' && <Settings />}

@@ -8,21 +8,22 @@ vi.mock('../../db/db', async () => {
 });
 
 import { AddToKanbanPicker } from './AddToKanbanPicker';
-import { createTask } from '../../db/repositories/tasks';
-import { INBOX_PROJECT_ID, INBOX_CONTAINER_ID } from '../../db/inbox';
+import { createContainer } from '../../db/repositories/containers';
+import { createProject } from '../../db/repositories/projects';
 import { db } from '../../db/db';
 
 describe('AddToKanbanPicker', () => {
-  it('finds a task by search and adds it to Kanban as Todo on click', async () => {
-    await createTask({ title: 'Board me', projectId: INBOX_PROJECT_ID, containerId: INBOX_CONTAINER_ID });
+  it('finds a container by search and adds it to Kanban as Todo on click', async () => {
+    const project = await createProject('Eng');
+    await createContainer(project.id, 'Board me');
     const onClose = vi.fn();
     render(<AddToKanbanPicker onClose={onClose} />);
 
-    await userEvent.type(screen.getByPlaceholderText('Search tasks'), 'Board');
+    await userEvent.type(screen.getByPlaceholderText('Search containers'), 'Board');
     await userEvent.click(await screen.findByText('Board me'));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    const task = await db.tasks.filter((t) => t.title === 'Board me').first();
-    await waitFor(() => expect(task?.kanban).toEqual({ status: 'Todo' }));
+    const container = await db.containers.filter((c) => c.name === 'Board me').first();
+    await waitFor(() => expect(container?.kanban).toEqual({ status: 'Todo' }));
   });
 });

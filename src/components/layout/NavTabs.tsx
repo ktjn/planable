@@ -10,7 +10,7 @@ import {
   type DragOverEvent,
 } from '@dnd-kit/core';
 import { SortableContext, arrayMove, horizontalListSortingStrategy } from '@dnd-kit/sortable';
-import { CalendarDays, CalendarRange, KanbanSquare, ListChecks, Moon, Plus, Search, Settings, Sun, Tags } from 'lucide-react';
+import { CalendarDays, CalendarRange, KanbanSquare, Layers, ListChecks, Moon, Plus, Search, Settings, Sun, Tags } from 'lucide-react';
 import {
   listProjects,
   createProject,
@@ -30,6 +30,7 @@ export type ActiveView =
   | { kind: 'weekly' }
   | { kind: 'kanban' }
   | { kind: 'all-tasks' }
+  | { kind: 'all-containers' }
   | { kind: 'labels' }
   | { kind: 'search' }
   | { kind: 'settings' }
@@ -104,6 +105,7 @@ export function NavTabs({
           ['weekly', 'Weekly Plan', CalendarDays] as const,
           ['kanban', 'Kanban', KanbanSquare] as const,
           ['all-tasks', 'All Tasks', ListChecks] as const,
+          ['all-containers', 'Containers', Layers] as const,
           ['search', 'Search', Search] as const,
           ['labels', 'Labels', Tags] as const,
           ['settings', 'Settings', Settings] as const,

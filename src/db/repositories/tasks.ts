@@ -22,11 +22,15 @@ export async function createTask(input: {
     containerId: input.containerId,
     completed: false,
     completedDate: null,
-    kanban: null,
+    archived: false,
     weekly: null,
   };
   await db.tasks.add(task);
   return task;
+}
+
+export async function setTaskArchived(id: string, archived: boolean): Promise<void> {
+  await db.tasks.update(id, { archived });
 }
 
 export async function createInboxTask(title: string): Promise<Task> {
@@ -48,5 +52,11 @@ export async function setTaskCompleted(id: string, completed: boolean): Promise<
 }
 
 export async function deleteTask(id: string): Promise<void> {
-  await db.tasks.delete(id);
+  await db.transaction('rw', db.tasks, db.weekTemplates, async () => {
+    const template = await db.weekTemplates.where('taskId').equals(id).first();
+    if (template) {
+      await db.weekTemplates.delete(template.id);
+    }
+    await db.tasks.delete(id);
+  });
 }

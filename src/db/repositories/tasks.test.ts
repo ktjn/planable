@@ -26,7 +26,7 @@ describe('task repository', () => {
     });
     expect(task.completed).toBe(false);
     expect(task.completedDate).toBeNull();
-    expect(task.kanban).toBeNull();
+    expect(task.archived).toBe(false);
     expect(task.weekly).toBeNull();
     expect(task.labels).toEqual([]);
   });

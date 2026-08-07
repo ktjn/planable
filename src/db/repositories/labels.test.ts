@@ -26,7 +26,7 @@ describe('label repository', () => {
       containerId: INBOX_CONTAINER_ID,
       completed: false,
       completedDate: null,
-      kanban: null,
+      archived: false,
       weekly: null,
     });
 
@@ -39,7 +39,7 @@ describe('label repository', () => {
       containerId: INBOX_CONTAINER_ID,
       completed: false,
       completedDate: null,
-      kanban: null,
+      archived: false,
       weekly: null,
     });
 

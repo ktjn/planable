@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 
@@ -8,15 +8,16 @@ vi.mock('../../db/db', async () => {
 });
 
 import { KanbanView } from './KanbanView';
-import { createTask } from '../../db/repositories/tasks';
-import { addToKanban, setKanbanStatus } from '../../db/repositories/taskMembership';
-import { INBOX_PROJECT_ID, INBOX_CONTAINER_ID } from '../../db/inbox';
+import { createContainer, addContainerToKanban, setContainerKanbanStatus } from '../../db/repositories/containers';
+import { createProject } from '../../db/repositories/projects';
+import { db } from '../../db/db';
 
 describe('KanbanView', () => {
-  it('shows a task in the correct status column', async () => {
-    const task = await createTask({ title: 'Ship it', projectId: INBOX_PROJECT_ID, containerId: INBOX_CONTAINER_ID });
-    await addToKanban(task.id);
-    await setKanbanStatus(task.id, 'Doing');
+  it('shows a container in the correct status column', async () => {
+    const project = await createProject('Eng');
+    const container = await createContainer(project.id, 'Ship it');
+    await addContainerToKanban(container.id);
+    await setContainerKanbanStatus(container.id, 'Doing');
 
     render(<KanbanView />);
 
@@ -24,48 +25,27 @@ describe('KanbanView', () => {
     expect(screen.getByText('Doing').closest('section')).toContainElement(screen.getByText('Ship it'));
   });
 
-  it('marks a task completed when its kanban card is moved to Done', async () => {
-    const task = await createTask({ title: 'Finish', projectId: INBOX_PROJECT_ID, containerId: INBOX_CONTAINER_ID });
-    await addToKanban(task.id);
+  it('quick-adds a task directly into a scheduled container without changing its Kanban status', async () => {
+    const project = await createProject('P3');
+    const container = await createContainer(project.id, 'Stream');
+    await addContainerToKanban(container.id);
+    await setContainerKanbanStatus(container.id, 'Doing');
 
     render(<KanbanView />);
-    // Simulate the drop directly via the repository call the drag handler uses,
-    // since jsdom cannot simulate real pointer-based dnd-kit drags.
-    await setKanbanStatus(task.id, 'Done');
+    const doingSection = screen.getByText('Doing').closest('section')!;
+    await within(doingSection).findByText('Stream');
+    await userEvent.click(within(doingSection).getByRole('button', { name: 'Add task to Stream' }));
+    await userEvent.type(within(doingSection).getByPlaceholderText('Type a title…'), 'Quick task{Enter}');
 
-    const { db } = await import('../../db/db');
-    const updated = await db.tasks.get(task.id);
-    expect(updated?.completed).toBe(true);
+    await waitFor(async () => {
+      const created = await db.tasks.filter((t) => t.title === 'Quick task').first();
+      expect(created?.containerId).toBe(container.id);
+    });
+    expect((await db.containers.get(container.id))?.kanban?.status).toBe('Doing');
   });
 
-  it('quick-adds a task directly into the clicked status column, in the Inbox project', async () => {
+  it('does not render a quick-add in the empty Inbox container as a Kanban card by default', async () => {
     render(<KanbanView />);
-
-    const blockedSection = screen.getByText('Blocked').closest('section')!;
-    await userEvent.click(within(blockedSection).getByText('+ Quick add'));
-    await userEvent.type(within(blockedSection).getByPlaceholderText('Type a title…'), 'Blocked task{Enter}');
-
-    expect(await within(blockedSection).findByText('Blocked task')).toBeInTheDocument();
-
-    const { db } = await import('../../db/db');
-    const created = await db.tasks.filter((t) => t.title === 'Blocked task').first();
-    expect(created?.projectId).toBe(INBOX_PROJECT_ID);
-    expect(created?.containerId).toBe(INBOX_CONTAINER_ID);
-    expect(created?.kanban).toEqual({ status: 'Blocked' });
-  });
-
-  it('quick-adds a task directly into the Done column and marks it completed', async () => {
-    render(<KanbanView />);
-
-    const doneSection = screen.getByText('Done').closest('section')!;
-    await userEvent.click(within(doneSection).getByText('+ Quick add'));
-    await userEvent.type(within(doneSection).getByPlaceholderText('Type a title…'), 'Done task{Enter}');
-
-    expect(await within(doneSection).findByText('Done task')).toBeInTheDocument();
-
-    const { db } = await import('../../db/db');
-    const created = await db.tasks.filter((t) => t.title === 'Done task').first();
-    expect(created?.kanban).toEqual({ status: 'Done' });
-    expect(created?.completed).toBe(true);
+    expect(screen.queryByText('+ Quick add')).not.toBeInTheDocument();
   });
 });
