@@ -8,7 +8,7 @@ export function AddToKanbanPicker({ onClose }: { onClose: () => void }) {
   const containers = useLiveQuery(
     () =>
       db.containers
-        .filter((c) => !c.archived && c.kanban === null && c.id !== 'inbox-container')
+        .filter((c) => !c.archived && c.id !== 'inbox-container')
         .toArray(),
     [],
     [],

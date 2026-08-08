@@ -8,11 +8,23 @@ vi.mock('../../db/db', async () => {
 });
 
 import { AddToKanbanPicker } from './AddToKanbanPicker';
-import { createContainer } from '../../db/repositories/containers';
+import { createContainer, setContainerKanbanStatus } from '../../db/repositories/containers';
 import { createProject } from '../../db/repositories/projects';
 import { db } from '../../db/db';
 
 describe('AddToKanbanPicker', () => {
+  it('shows all containers by default, including ones already on the board', async () => {
+    const project = await createProject('Eng');
+    const unused = await createContainer(project.id, 'Not on board');
+    const onBoard = await createContainer(project.id, 'On board');
+    await setContainerKanbanStatus(onBoard.id, 'Doing');
+
+    render(<AddToKanbanPicker onClose={vi.fn()} />);
+
+    expect(await screen.findByText('Not on board')).toBeInTheDocument();
+    expect(screen.getByText('On board')).toBeInTheDocument();
+  });
+
   it('finds a container by search and adds it to Kanban as Todo on click', async () => {
     const project = await createProject('Eng');
     await createContainer(project.id, 'Board me');
