@@ -241,17 +241,17 @@ export function WeeklyPlanView() {
         </section>
         <DragOverlay>
           {activeTask && (
-            <TaskCard
-              task={activeTask}
-              labelsById={labelsById}
-              containerById={containerById}
-              projectById={projectById}
-              showWeeklyBadge={false}
-              showAddToWeek={false}
-              sortableId={null}
-              onEdit={() => {}}
-              className="rotate-3 cursor-grabbing opacity-95 shadow-lg"
-            />
+              <TaskCard
+                task={task}
+                labelsById={labelsById}
+                containerById={containerById}
+                projectById={projectById}
+                sortableId={task.id}
+                showWeeklyBadge={false}
+                showAddToWeek={false}
+                onEdit={onEdit}
+                className={task.completed ? 'opacity-70' : ''}
+              />
           )}
         </DragOverlay>
       </DndContext>
