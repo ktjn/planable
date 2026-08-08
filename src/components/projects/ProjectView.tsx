@@ -26,6 +26,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
   const project = useLiveQuery(() => db.projects.get(projectId), [projectId]);
   const labels = useLiveQuery(listLabels, [], []);
   const labelsById = new Map((labels ?? []).map((l) => [l.id, l]));
+  const containerById = new Map((containers ?? []).map((c) => [c.id, c]));
   const visibleContainers = (containers ?? []).filter(isContainerVisible);
   const [newName, setNewName] = useState('');
   const [order, setOrder] = useState<string[]>([]);
@@ -112,7 +113,13 @@ export function ProjectView({ projectId }: { projectId: string }) {
         <SortableContext items={ids} strategy={rectSortingStrategy}>
           <div className="flex items-start gap-4 overflow-x-auto pb-2">
             {sorted.map((container) => (
-              <ContainerColumn key={container.id} container={container} labelsById={labelsById} />
+              <ContainerColumn
+                key={container.id}
+                container={container}
+                labelsById={labelsById}
+                projectById={project ? new Map([[project.id, project]]) : undefined}
+                containerById={containerById}
+              />
             ))}
           </div>
         </SortableContext>

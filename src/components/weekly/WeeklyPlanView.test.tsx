@@ -8,7 +8,7 @@ vi.mock('../../db/db', async () => {
 });
 
 import { WeeklyPlanView } from './WeeklyPlanView';
-import { createTask } from '../../db/repositories/tasks';
+import { createTask, setTaskCompleted } from '../../db/repositories/tasks';
 import { addToWeek, setWeeklyDay } from '../../db/repositories/taskMembership';
 import { getCurrentWeekId } from '../../lib/week';
 import { INBOX_PROJECT_ID, INBOX_CONTAINER_ID } from '../../db/inbox';
@@ -52,7 +52,25 @@ describe('WeeklyPlanView', () => {
     const created = await db.tasks.filter((t) => t.title === 'Quick task').first();
     expect(created?.projectId).toBe(INBOX_PROJECT_ID);
     expect(created?.containerId).toBe(INBOX_CONTAINER_ID);
-    expect(created?.weekly).toEqual({ weekId: getCurrentWeekId(), day: 'Wed', repeatWeekly: false });
+    expect(created?.weekly).toEqual(
+      expect.objectContaining({ weekId: getCurrentWeekId(), day: 'Wed', repeatWeekly: false }),
+    );
+  });
+
+  it('ticks off a task and moves it to the bottom of the day column', async () => {
+    const open = await createTask({ title: 'Open', projectId: INBOX_PROJECT_ID, containerId: INBOX_CONTAINER_ID });
+    const done = await createTask({ title: 'Done', projectId: INBOX_PROJECT_ID, containerId: INBOX_CONTAINER_ID });
+    await addToWeek(open.id, getCurrentWeekId());
+    await addToWeek(done.id, getCurrentWeekId());
+    await setWeeklyDay(open.id, 'Mon');
+    await setWeeklyDay(done.id, 'Mon');
+    await setTaskCompleted(done.id, true);
+
+    render(<WeeklyPlanView />);
+    const monSection = (await screen.findByText('Mon')).closest('section')!;
+    const rows = within(monSection).getAllByRole('button', { name: /^(Open|Done)$/ });
+    expect(rows[0]).toHaveTextContent('Open');
+    expect(rows[1]).toHaveTextContent('Done');
   });
 
   it('shows only a Tasks board, with no Containers board', async () => {

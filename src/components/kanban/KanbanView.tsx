@@ -16,7 +16,7 @@ import { createTask } from '../../db/repositories/tasks';
 import { listLabels } from '../../db/repositories/labels';
 import { fireAndForget } from '../../lib/fireAndForget';
 import { INBOX_PROJECT_ID } from '../../db/inbox';
-import type { Container, KanbanStatus, Label } from '../../db/schema';
+import type { Container, KanbanStatus, Label, Project } from '../../db/schema';
 import { GripVertical, KanbanSquare, Plus } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { AddToKanbanPicker } from './AddToKanbanPicker';
@@ -24,6 +24,7 @@ import { QuickAddRow } from '../shared/QuickAddRow';
 import { SortedTaskList } from '../shared/SortedTaskList';
 import { EntityLabels } from '../shared/EntityLabels';
 import { ContainerDialog } from '../projects/ContainerDialog';
+import { EntityHoverCard, ContainerHoverCardContent } from '../shared/EntityHoverCard';
 
 const COLUMNS: KanbanStatus[] = ['Todo', 'Doing', 'Blocked', 'Done'];
 
@@ -38,12 +39,21 @@ function KanbanCard({
   container,
   projectName,
   labelsById,
+  projectById,
+  containerById,
 }: {
   container: Container;
   projectName: string;
   labelsById: Map<string, Label>;
+  projectById?: Map<string, Project>;
+  containerById?: Map<string, Container>;
 }) {
   const [editing, setEditing] = useState(false);
+  const taskCount = useLiveQuery(
+    () => db.containers.get(container.id).then((c) => (c ? db.tasks.where('containerId').equals(c.id).count() : 0)),
+    [container.id],
+    0,
+  );
   const { setNodeRef, setActivatorNodeRef, listeners, attributes, transform, isDragging } = useDraggable({
     id: container.id,
   });
@@ -59,26 +69,42 @@ function KanbanCard({
           isDragging ? 'opacity-50' : ''
         }`}
       >
-        <div className="flex items-start justify-between gap-2 px-3 pt-2">
-          <div className="min-w-0 flex-1">
-            <span className="block truncate font-medium">{container.name}</span>
-            <span className="block truncate text-xs text-muted-foreground">{projectName}</span>
+        <EntityHoverCard
+          content={
+            <ContainerHoverCardContent
+              container={container}
+              projectById={projectById ?? new Map()}
+              labelsById={labelsById}
+              taskCount={taskCount}
+            />
+          }
+        >
+          <div className="flex items-start justify-between gap-2 px-3 pt-2">
+            <div className="min-w-0 flex-1">
+              <span className="block truncate font-medium">{container.name}</span>
+              <span className="block truncate text-xs text-muted-foreground">{projectName}</span>
+            </div>
+            <button
+              ref={setActivatorNodeRef}
+              aria-label={`Drag ${container.name}`}
+              className="shrink-0 cursor-grab touch-none text-muted-foreground/60 hover:text-muted-foreground active:cursor-grabbing"
+              {...listeners}
+              {...attributes}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
           </div>
-          <button
-            ref={setActivatorNodeRef}
-            aria-label={`Drag ${container.name}`}
-            className="shrink-0 cursor-grab touch-none text-muted-foreground/60 hover:text-muted-foreground active:cursor-grabbing"
-            {...listeners}
-            {...attributes}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <GripVertical className="h-4 w-4" />
-          </button>
-        </div>
+        </EntityHoverCard>
         <div className="px-3">
           <EntityLabels labelIds={container.labels} labelsById={labelsById} />
         </div>
-        <SortedTaskList containerId={container.id} labelsById={labelsById} />
+        <SortedTaskList
+          containerId={container.id}
+          labelsById={labelsById}
+          containerById={containerById}
+          projectById={projectById}
+        />
         <div className="p-2 pt-0">
           <QuickAddRow
             onAdd={async (title) => {
@@ -97,7 +123,7 @@ function ContainerList({
   projectById,
 }: {
   status: KanbanStatus;
-  projectById: Map<string, { id: string; name: string }>;
+  projectById: Map<string, Project>;
 }) {
   const containers = useLiveQuery(
     () => db.containers.filter((c) => !c.archived && c.kanban?.status === status).sortBy('order'),
@@ -106,6 +132,10 @@ function ContainerList({
   );
   const labels = useLiveQuery(listLabels, [], []);
   const labelsById = useMemo(() => new Map(labels.map((l) => [l.id, l])), [labels]);
+  const containerById = useMemo(
+    () => new Map((containers ?? []).map((c) => [c.id, c])),
+    [containers],
+  );
 
   return (
     <ul className="flex flex-col gap-1.5 p-2">
@@ -115,6 +145,8 @@ function ContainerList({
           container={container}
           projectName={projectById.get(container.projectId)?.name ?? ''}
           labelsById={labelsById}
+          projectById={projectById}
+          containerById={containerById}
         />
       ))}
     </ul>
