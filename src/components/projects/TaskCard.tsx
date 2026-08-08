@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { useSortable } from '@dnd-kit/sortable';
+import { useSortable, defaultAnimateLayoutChanges } from '@dnd-kit/sortable';
 import { GripVertical, CalendarPlus } from 'lucide-react';
 import { setTaskCompleted } from '../../db/repositories/tasks';
 import { addToWeek } from '../../db/repositories/taskMembership';
@@ -40,6 +40,7 @@ export function TaskCard({
   const sortable = useSortable({
     id: sortableId ?? '__disabled__',
     disabled: sortableId === null,
+    animateLayoutChanges: defaultAnimateLayoutChanges,
   });
   const { setNodeRef, setActivatorNodeRef, listeners, attributes, transform, isDragging } = sortable;
 
@@ -64,8 +65,8 @@ export function TaskCard({
             if (onEdit) onEdit(task);
             else setEditing(true);
           }}
-          className={`group flex items-center gap-2 rounded-lg border border-border/70 bg-background/70 px-2.5 py-2 shadow-sm hover:border-input hover:bg-background hover:shadow-md ${
-            isDragging ? 'opacity-50' : ''
+          className={`group flex items-center gap-2 rounded-lg border border-border/70 bg-background/70 px-2.5 py-2 shadow-sm transition-[transform,opacity,box-shadow] duration-200 ease-out hover:border-input hover:bg-background hover:shadow-md ${
+            isDragging ? 'opacity-40' : ''
           } ${className ?? ''}`}
         >
           {showCheckbox && (

@@ -1,12 +1,14 @@
 // src/components/weekly/WeeklyPlanView.tsx
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core';
 import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -129,6 +131,7 @@ export function WeeklyPlanView() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [rolloverOpen, setRolloverOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor),
@@ -139,7 +142,13 @@ export function WeeklyPlanView() {
     [tasks, containerById],
   );
 
+  function handleDragStart(event: DragStartEvent) {
+    const id = String(event.active.id);
+    setActiveTask((tasks ?? []).find((t) => t.id === id) ?? null);
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    setActiveTask(null);
     const { active, over } = event;
     if (!over) return;
     const activeId = String(active.id);
@@ -206,7 +215,12 @@ export function WeeklyPlanView() {
         </div>
       </div>
       {pickerOpen && <AddToWeekPicker onClose={() => setPickerOpen(false)} />}
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setActiveTask(null)}
+      >
         <section className="flex flex-col gap-2">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Tasks</h3>
           <div className="flex gap-4 overflow-x-auto pb-2">
@@ -224,6 +238,21 @@ export function WeeklyPlanView() {
             ))}
           </div>
         </section>
+        <DragOverlay>
+          {activeTask && (
+            <TaskCard
+              task={activeTask}
+              labelsById={labelsById}
+              containerById={containerById}
+              projectById={projectById}
+              showWeeklyBadge={false}
+              showAddToWeek={false}
+              sortableId={null}
+              onEdit={() => {}}
+              className="rotate-3 cursor-grabbing opacity-95 shadow-lg"
+            />
+          )}
+        </DragOverlay>
       </DndContext>
       {editing && (
         <TaskDialog
