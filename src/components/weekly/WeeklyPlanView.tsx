@@ -145,6 +145,7 @@ export function WeeklyPlanView() {
     const activeId = String(active.id);
     const overId = String(over.id);
 
+    // Dropped on a day column itself → move to that day.
     if (overId.startsWith('t:')) {
       fireAndForget(setWeeklyDay(activeId, overId.slice(2) as WeekDay));
       return;
@@ -152,6 +153,15 @@ export function WeeklyPlanView() {
 
     const task = tasks?.find((t) => t.id === activeId);
     if (!task?.weekly) return;
+
+    // Dropped on a task in a different day → move to that day.
+    const overTask = tasks?.find((t) => t.id === overId);
+    if (overTask?.weekly && overTask.weekly.weekId === task.weekly.weekId && overTask.weekly.day !== task.weekly.day) {
+      fireAndForget(setWeeklyDay(activeId, overTask.weekly.day));
+      return;
+    }
+
+    // Otherwise: reorder within the current day.
     const day = task.weekly.day;
     const dayTasks = sortWeeklyTasks((tasks ?? []).filter((t) => t.weekly?.day === day));
     const oldIndex = dayTasks.findIndex((t) => t.id === activeId);

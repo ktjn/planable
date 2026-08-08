@@ -59,7 +59,11 @@ export function TaskCard({
           ref={setNodeRef}
           data-dnd-draggable
           style={{ transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined }}
-          onDoubleClick={() => (onEdit ? onEdit(task) : setEditing(true))}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            if (onEdit) onEdit(task);
+            else setEditing(true);
+          }}
           className={`group flex items-center gap-2 rounded-lg border border-border/70 bg-background/70 px-2.5 py-2 shadow-sm hover:border-input hover:bg-background hover:shadow-md ${
             isDragging ? 'opacity-50' : ''
           } ${className ?? ''}`}

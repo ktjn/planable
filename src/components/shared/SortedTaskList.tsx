@@ -14,9 +14,15 @@ import { fireAndForget } from '../../lib/fireAndForget';
 import type { Label, Container, Project } from '../../db/schema';
 import { TaskCard } from '../projects/TaskCard';
 
+function byOrder(a: { id: string; order: number }, b: { id: string; order: number }) {
+  if (a.order !== b.order) return a.order - b.order;
+  return a.id.localeCompare(b.id);
+}
+
 /**
  * Renders a Container's Tasks as a drag-and-drop sortable list so Tasks can be
  * reordered inside their Container. Ordering is persisted via `reorderTasks`.
+ * Completed tasks sink to the bottom of the list.
  */
 export function SortedTaskList({
   containerId,
@@ -36,33 +42,52 @@ export function SortedTaskList({
     useSensor(KeyboardSensor),
   );
 
-  const ids = tasks.map((t) => t.id);
-  const sortedIds = order.length === tasks.length ? order : ids;
-  const sorted = useMemo(
-    () =>
-      sortedIds
-        .map((id) => tasks.find((t) => t.id === id))
-        .filter((t): t is NonNullable<typeof t> => Boolean(t)),
-    [sortedIds, tasks],
+  const open = useMemo(
+    () => (tasks ?? []).filter((t) => !t.completed).sort(byOrder),
+    [tasks],
   );
+  const done = useMemo(
+    () =>
+      (tasks ?? [])
+        .filter((t) => t.completed)
+        .sort((a, b) => (b.completedDate ?? 0) - (a.completedDate ?? 0)),
+    [tasks],
+  );
+
+  // Sorting key for dnd among open tasks only; completed tasks stay pinned to the bottom.
+  const openIds = open.map((t) => t.id);
+  const sortedOpenIds = order.length === openIds.length ? order : openIds;
+
+  const openSorted = useMemo(
+    () =>
+      sortedOpenIds
+        .map((id) => open.find((t) => t.id === id))
+        .filter((t): t is NonNullable<typeof t> => Boolean(t)),
+    [sortedOpenIds, open],
+  );
+
+  const sorted = [...openSorted, ...done];
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     setOrder((prev) => {
-      const base = prev.length === tasks.length ? prev : tasks.map((t) => t.id);
+      const base = prev.length === openIds.length ? prev : openIds;
       const oldIndex = base.indexOf(String(active.id));
       const newIndex = base.indexOf(String(over.id));
       if (oldIndex < 0 || newIndex < 0) return prev;
-      const next = arrayMove(base, oldIndex, newIndex);
-      fireAndForget(reorderTasks(containerId, next));
-      return next;
+      const nextOpen = arrayMove(base, oldIndex, newIndex);
+      // Persist the full container order: open tasks first, then completed.
+      fireAndForget(
+        reorderTasks(containerId, [...nextOpen, ...done.map((t) => t.id)]),
+      );
+      return nextOpen;
     });
   }
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <SortableContext items={sortedIds} strategy={verticalListSortingStrategy}>
+      <SortableContext items={sortedOpenIds} strategy={verticalListSortingStrategy}>
         <ul className="flex flex-col gap-1 p-1.5">
           {sorted.map((task) => (
             <li key={task.id}>
@@ -71,6 +96,7 @@ export function SortedTaskList({
                 labelsById={labelsById}
                 containerById={containerById}
                 projectById={projectById}
+                sortableId={task.completed ? null : task.id}
               />
             </li>
           ))}
