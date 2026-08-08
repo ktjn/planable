@@ -9,6 +9,22 @@ const entities = [
 ];
 
 describe('EntityPicker', () => {
+  it('shows all entities without a query', () => {
+    render(
+      <EntityPicker
+        open
+        onOpenChange={vi.fn()}
+        title="Pick"
+        placeholder="Search"
+        entities={entities}
+        onSelect={vi.fn()}
+        emptyMessage="No matches"
+      />,
+    );
+    expect(screen.getByText('Alpha')).toBeInTheDocument();
+    expect(screen.getByText('Beta')).toBeInTheDocument();
+  });
+
   it('filters entities by query', async () => {
     render(
       <EntityPicker

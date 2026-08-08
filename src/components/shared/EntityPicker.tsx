@@ -35,7 +35,7 @@ export function EntityPicker({
   const filtered = useMemo(
     () =>
       q.length === 0
-        ? []
+        ? entities
         : entities.filter(
             (e) =>
               e.title.toLowerCase().includes(q) ||
@@ -70,14 +70,9 @@ export function EntityPicker({
               </button>
             </li>
           ))}
-          {q.length > 0 && filtered.length === 0 && (
+          {filtered.length === 0 && (
             <li className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
-              {emptyMessage}
-            </li>
-          )}
-          {q.length === 0 && (
-            <li className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
-              Type to search.
+              {q.length === 0 ? 'Nothing to select.' : emptyMessage}
             </li>
           )}
         </ul>
