@@ -37,12 +37,16 @@ export function ContainerColumn({
       ref={setNodeRef}
       data-dnd-droppable
       data-dnd-draggable
-      style={{ transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined }}
+      style={{
+        transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+        transition: isDragging ? 'none' : undefined,
+      }}
       className={`flex w-64 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm ${
         isDragging ? 'opacity-50' : 'hover:shadow-md'
       }`}
     >
       <EntityHoverCard
+        disabled={isDragging}
         content={
           <ContainerHoverCardContent
             container={container}
@@ -64,6 +68,7 @@ export function ContainerColumn({
               {...listeners}
               {...attributes}
               onClick={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
             >
               <GripVertical className="h-4 w-4" />
             </button>

@@ -8,9 +8,11 @@ import { EntityLabels } from './EntityLabels';
 export function EntityHoverCard({
   children,
   content,
+  disabled = false,
 }: {
   children: ReactNode;
   content: ReactNode;
+  disabled?: boolean;
 }) {
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
 
@@ -34,37 +36,31 @@ export function EntityHoverCard({
     [pointer],
   );
 
+  if (disabled) return <>{children}</>;
+
   return (
     <PreviewCard.Root>
       <PreviewCard.Trigger
-        render={(props) => {
-          const { ref: _ref, ...rest } = props as unknown as {
-            ref?: unknown;
-            children: ReactNode;
-          };
-          return (
-            <div
-              {...(rest as object)}
-              className="contents"
-              onMouseMove={(e) => setPointer({ x: e.clientX, y: e.clientY })}
-            >
-              {props.children}
-            </div>
-          );
-        }}
+        render={
+          <div
+            className="contents"
+            onPointerMove={(e) => setPointer({ x: e.clientX, y: e.clientY })}
+          >
+            {children}
+          </div>
+        }
         delay={300}
         closeDelay={150}
-      >
-        {children}
-      </PreviewCard.Trigger>
+      />
       <PreviewCard.Portal>
         <PreviewCard.Positioner
           side="top"
           align="start"
           sideOffset={10}
           anchor={floatingAnchor}
+          className="pointer-events-none"
         >
-          <PreviewCard.Popup>
+          <PreviewCard.Popup className="pointer-events-none">
             <PreviewCard.Arrow />
             {content}
           </PreviewCard.Popup>
