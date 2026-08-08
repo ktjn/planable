@@ -43,7 +43,9 @@ describe('import/export', () => {
     const exportedContainer = exported.containers.find((c) => c.id === container.id);
     expect(exportedTask).toBeDefined();
     expect(exportedTask?.archived).toBe(true);
-    expect(exportedTask?.weekly).toEqual({ weekId: 'x', day: 'Tue', repeatWeekly: true });
+    expect(exportedTask?.weekly).toEqual(
+      expect.objectContaining({ weekId: 'x', day: 'Tue', repeatWeekly: true }),
+    );
     expect(exportedTask?.completedDate).not.toBeNull();
     expect(exportedContainer?.labels).toEqual([label.id]);
     expect(exportedContainer?.kanban).toEqual({ status: 'Blocked' });
@@ -62,7 +64,9 @@ describe('import/export', () => {
     const task = await db.tasks.filter((t) => t.title === 'Exportable').first();
     expect(task?.labels).toEqual([label.id]);
     expect(task?.archived).toBe(true);
-    expect(task?.weekly).toEqual({ weekId: 'x', day: 'Tue', repeatWeekly: true });
+    expect(task?.weekly).toEqual(
+      expect.objectContaining({ weekId: 'x', day: 'Tue', repeatWeekly: true }),
+    );
     expect(task?.completedDate).toEqual(exportedTask?.completedDate);
   });
 
@@ -90,7 +94,9 @@ describe('import/export', () => {
     expect(importedContainer.kanban).toEqual({ status: 'Doing' });
 
     const importedScheduled = await db.tasks.get(scheduledTask.id);
-    expect(importedScheduled?.weekly).toEqual({ weekId: '2026-W32', day: 'Thu', repeatWeekly: false });
+    expect(importedScheduled?.weekly).toEqual(
+      expect.objectContaining({ weekId: '2026-W32', day: 'Thu', repeatWeekly: false }),
+    );
     expect(importedScheduled?.containerId).toBe(container.id);
   });
 });

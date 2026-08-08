@@ -11,7 +11,7 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-ki
 import { useLiveQuery } from 'dexie-react-hooks';
 import { listTasksByContainer, reorderTasks } from '../../db/repositories/tasks';
 import { fireAndForget } from '../../lib/fireAndForget';
-import type { Label } from '../../db/schema';
+import type { Label, Container, Project } from '../../db/schema';
 import { TaskCard } from '../projects/TaskCard';
 
 /**
@@ -21,9 +21,13 @@ import { TaskCard } from '../projects/TaskCard';
 export function SortedTaskList({
   containerId,
   labelsById,
+  containerById,
+  projectById,
 }: {
   containerId: string;
   labelsById: Map<string, Label>;
+  containerById?: Map<string, Container>;
+  projectById?: Map<string, Project>;
 }) {
   const tasks = useLiveQuery(() => listTasksByContainer(containerId), [containerId], []);
   const [order, setOrder] = useState<string[]>([]);
@@ -62,7 +66,12 @@ export function SortedTaskList({
         <ul className="flex flex-col gap-1 p-1.5">
           {sorted.map((task) => (
             <li key={task.id}>
-              <TaskCard task={task} labelsById={labelsById} />
+              <TaskCard
+                task={task}
+                labelsById={labelsById}
+                containerById={containerById}
+                projectById={projectById}
+              />
             </li>
           ))}
           {sorted.length === 0 && (

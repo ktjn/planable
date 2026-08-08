@@ -11,6 +11,7 @@ import { AllContainersView } from './AllContainersView';
 import { createProject } from '../../db/repositories/projects';
 import { createContainer, setContainerArchived } from '../../db/repositories/containers';
 import { createLabel } from '../../db/repositories/labels';
+import { createTask } from '../../db/repositories/tasks';
 import { db } from '../../db/db';
 
 describe('AllContainersView', () => {
@@ -58,5 +59,17 @@ describe('AllContainersView', () => {
     render(<AllContainersView />);
     await userEvent.dblClick(await screen.findByText('Editable'));
     expect(await screen.findByText('Edit container')).toBeInTheDocument();
+  });
+
+  it('lists a container\'s tasks after expanding the row', async () => {
+    const project = await createProject('Alpha');
+    const container = await createContainer(project.id, 'Expando');
+    await createTask({ title: 'Child', projectId: project.id, containerId: container.id });
+
+    render(<AllContainersView />);
+    const expandButton = await screen.findByRole('button', { name: /expand expando/i });
+    const row = expandButton.closest('li')!;
+    await userEvent.click(expandButton);
+    expect(await within(row).findByText('Child')).toBeInTheDocument();
   });
 });

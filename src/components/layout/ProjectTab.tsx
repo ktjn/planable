@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { GripVertical, X, type LucideIcon } from 'lucide-react';
 import { renameProject } from '../../db/repositories/projects';
 import { fireAndForget } from '../../lib/fireAndForget';
 import type { Project } from '../../db/schema';
 import { Button } from '../../components/ui/button';
+import { db } from '../../db/db';
+import { listLabels } from '../../db/repositories/labels';
+import { EntityHoverCard, ProjectHoverCardContent } from '../shared/EntityHoverCard';
 
 export function AppSettingsTab({
   label,
@@ -49,6 +53,18 @@ export function ProjectTab({
   onDelete?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const taskCount = useLiveQuery(
+    () => db.tasks.where('projectId').equals(project.id).count(),
+    [project.id],
+    0,
+  );
+  const containerCount = useLiveQuery(
+    () => db.containers.where('projectId').equals(project.id).count(),
+    [project.id],
+    0,
+  );
+  const labels = useLiveQuery(listLabels, [], []);
+  const labelsById = new Map(labels.map((l) => [l.id, l]));
   const { setNodeRef, setActivatorNodeRef, listeners, attributes, transform, isDragging } = useSortable({
     id: project.id,
     disabled: pinned,
@@ -91,23 +107,34 @@ export function ProjectTab({
           }}
         />
       ) : (
-        <Button
-          variant="ghost"
-          size="sm"
-          className={`h-8 rounded-lg px-2.5 ${
-            active
-              ? 'bg-secondary text-foreground shadow-sm'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-          } ${pinned ? 'font-medium' : ''}`}
-          aria-current={active ? 'page' : undefined}
-          onClick={onSelect}
-          onDoubleClick={() => {
-            if (!pinned) setEditing(true);
-          }}
+        <EntityHoverCard
+          content={
+            <ProjectHoverCardContent
+              project={project}
+              labelsById={labelsById}
+              containerCount={containerCount}
+              taskCount={taskCount}
+            />
+          }
         >
-          {pinned && <span className="size-1.5 shrink-0 rounded-full bg-primary/70" />}
-          {project.name}
-        </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`h-8 rounded-lg px-2.5 ${
+              active
+                ? 'bg-secondary text-foreground shadow-sm'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            } ${pinned ? 'font-medium' : ''}`}
+            aria-current={active ? 'page' : undefined}
+            onClick={onSelect}
+            onDoubleClick={() => {
+              if (!pinned) setEditing(true);
+            }}
+          >
+            {pinned && <span className="size-1.5 shrink-0 rounded-full bg-primary/70" />}
+            {project.name}
+          </Button>
+        </EntityHoverCard>
       )}
       {!pinned && onDelete && (
         <Button

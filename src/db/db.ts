@@ -53,6 +53,16 @@ export class PlanableDB extends Dexie {
         }
       });
     });
+    // v5: adds optional per-week/per-day ordering so the weekly plan can be
+    // reordered independently of the task's container order.
+    this.version(5).stores({
+      projects: 'id, order',
+      containers: 'id, projectId, order, weekly.weekId',
+      tasks: 'id, projectId, containerId, weekly.weekId',
+      labels: 'id, name',
+      weekTemplates: 'id, projectId, taskId',
+      settings: '&key',
+    });
     this.on('populate', () => {
       this.projects.add(INBOX_PROJECT);
       this.containers.add(INBOX_CONTAINER);

@@ -3,15 +3,11 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState } from 'react';
 import { ListChecks } from 'lucide-react';
 import { db } from '../../db/db';
-import { setTaskCompleted } from '../../db/repositories/tasks';
 import { listLabels } from '../../db/repositories/labels';
-import { fireAndForget } from '../../lib/fireAndForget';
 import { isTaskVisible } from '../../lib/entityVisibility';
 import type { Task } from '../../db/schema';
-import { Checkbox } from '../ui/checkbox';
-import { Badge } from '../ui/badge';
 import { TaskDialog } from '../projects/TaskDialog';
-import { EntityLabels } from '../shared/EntityLabels';
+import { TaskCard } from '../projects/TaskCard';
 
 export function AllTasksView() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -44,36 +40,23 @@ export function AllTasksView() {
       </div>
       <ul className="flex flex-col gap-1.5">
         {visibleTasks.map((task) => (
-          <li
-            key={task.id}
-            onDoubleClick={() => setEditingTask(task)}
-            className="flex items-center gap-2 rounded-xl border border-border/70 bg-card px-3 py-2.5 shadow-sm"
-          >
-            <Checkbox
-              checked={task.completed}
-              aria-label={`Toggle completed for ${task.title}`}
-              onCheckedChange={(checked) => fireAndForget(setTaskCompleted(task.id, checked))}
-              onClick={(e) => e.stopPropagation()}
+          <li key={task.id}>
+            <TaskCard
+              task={task}
+              labelsById={labelsById}
+              projectById={projectById}
+              containerById={containerById}
+              sortableId={null}
+              showAddToWeek={false}
+              onEdit={setEditingTask}
+              extra={
+                projectById.get(task.projectId) && (
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {projectById.get(task.projectId)!.name}
+                  </span>
+                )
+              }
             />
-            <button
-              className={`min-w-0 flex-1 truncate text-left text-sm ${
-                task.completed ? 'text-muted-foreground line-through' : 'text-foreground'
-              }`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {task.title}
-            </button>
-            <EntityLabels labelIds={task.labels} labelsById={labelsById} />
-            {projectById.get(task.projectId) && (
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {projectById.get(task.projectId)!.name}
-              </span>
-            )}
-            {task.weekly && (
-              <Badge variant="secondary" className="shrink-0">
-                {task.weekly.repeatWeekly ? 'Repeats weekly' : `Week: ${task.weekly.day}`}
-              </Badge>
-            )}
           </li>
         ))}
         {visibleTasks.length === 0 && (

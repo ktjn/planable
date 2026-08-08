@@ -1,15 +1,17 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState } from 'react';
-import { Layers } from 'lucide-react';
+import { Layers, ChevronRight, ChevronDown } from 'lucide-react';
 import { db } from '../../db/db';
 import { listLabels } from '../../db/repositories/labels';
-import { listTasksByContainer, createTask } from '../../db/repositories/tasks';
+import { createTask } from '../../db/repositories/tasks';
 import { isContainerVisible } from '../../lib/entityVisibility';
-import type { Container, Label } from '../../db/schema';
+import type { Container, Label, Project } from '../../db/schema';
 import { Badge } from '../ui/badge';
 import { EntityLabels } from '../shared/EntityLabels';
 import { QuickAddRow } from '../shared/QuickAddRow';
+import { SortedTaskList } from '../shared/SortedTaskList';
 import { ContainerDialog } from '../projects/ContainerDialog';
+import { EntityHoverCard, ContainerHoverCardContent } from '../shared/EntityHoverCard';
 
 export function AllContainersView() {
   const containers = useLiveQuery(
@@ -30,6 +32,10 @@ export function AllContainersView() {
     for (const t of allTasks ?? []) map.set(t.containerId, (map.get(t.containerId) ?? 0) + 1);
     return map;
   }, [allTasks]);
+  const containerById = useMemo(
+    () => new Map((containers ?? []).map((c) => [c.id, c])),
+    [containers],
+  );
 
   const sorted = useMemo(
     () =>
@@ -63,6 +69,8 @@ export function AllContainersView() {
             key={container.id}
             container={container}
             labelsById={labelsById}
+            projectById={projectById}
+            containerById={containerById}
             taskCount={countByContainer.get(container.id) ?? 0}
           >
             {projectById.get(container.projectId)?.name && (
@@ -84,15 +92,19 @@ function ContainerRow({
   container,
   labelsById,
   taskCount,
+  projectById,
+  containerById,
   children,
 }: {
   container: Container;
   labelsById: Map<string, Label>;
   taskCount: number;
+  projectById?: Map<string, Project>;
+  containerById?: Map<string, Container>;
   children: React.ReactNode;
 }) {
   const [editing, setEditing] = useState(false);
-  const tasks = useLiveQuery(() => listTasksByContainer(container.id), [container.id], []);
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <>
@@ -101,20 +113,47 @@ function ContainerRow({
         className="flex flex-col gap-2 rounded-xl border border-border/70 bg-card px-3 py-2.5 shadow-sm"
       >
         <div className="flex items-center gap-2">
-          <div className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium text-foreground">{container.name}</span>
-            <span className="mt-0.5 flex items-center gap-2">
-              {children}
-              {container.kanban && (
-                <Badge variant="secondary">Kanban: {container.kanban.status}</Badge>
-              )}
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
+          <button
+            aria-label={expanded ? `Collapse ${container.name}` : `Expand ${container.name}`}
+            aria-expanded={expanded}
+            onClick={() => setExpanded((v) => !v)}
+            className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </button>
+          <EntityHoverCard
+            content={
+              <ContainerHoverCardContent
+                container={container}
+                projectById={projectById ?? new Map()}
+                labelsById={labelsById}
+                taskCount={taskCount}
+              />
+            }
+          >
+            <div className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-foreground">{container.name}</span>
+              <span className="mt-0.5 flex items-center gap-2">
+                {children}
+                {container.kanban && (
+                  <Badge variant="secondary">Kanban: {container.kanban.status}</Badge>
+                )}
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
+                </span>
               </span>
-            </span>
-          </div>
+            </div>
+          </EntityHoverCard>
           <EntityLabels labelIds={container.labels} labelsById={labelsById} />
         </div>
+        {expanded && (
+          <SortedTaskList
+            containerId={container.id}
+            labelsById={labelsById}
+            containerById={containerById}
+            projectById={projectById}
+          />
+        )}
         <QuickAddRow
           onAdd={async (title) => {
             await createTask({ title, projectId: container.projectId, containerId: container.id });

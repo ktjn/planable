@@ -14,6 +14,7 @@ export interface WeeklyMembership {
 
 export interface WeeklyTaskMembership extends WeeklyMembership {
   repeatWeekly: boolean;
+  order?: number;
 }
 
 export interface Container {

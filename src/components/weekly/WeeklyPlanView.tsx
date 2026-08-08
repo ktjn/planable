@@ -3,32 +3,32 @@ import {
   DndContext,
   KeyboardSensor,
   PointerSensor,
-  useDraggable,
   useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core';
+import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState } from 'react';
-import { GripVertical } from 'lucide-react';
 import { db } from '../../db/db';
 import { advanceActiveWeek } from '../../lib/activeWeek';
 import { getCurrentWeekId, getNextWeekId, getWeekLabel } from '../../lib/week';
 import { SETTING_ACTIVE_WEEK } from '../../db/repositories/settings';
-import { addToWeek, setWeeklyDay } from '../../db/repositories/taskMembership';
+import { addToWeek, setWeeklyDay, reorderWeeklyTasks } from '../../db/repositories/taskMembership';
 import { listLabels } from '../../db/repositories/labels';
 import { autoHandleClosingWeek } from '../../lib/rollover';
 import { fireAndForget } from '../../lib/fireAndForget';
 import { isTaskVisible } from '../../lib/entityVisibility';
-import type { Task, WeekDay, Label } from '../../db/schema';
+import { sortWeeklyTasks } from '../../lib/weeklyOrder';
+import type { Task, WeekDay, Label, Container, Project } from '../../db/schema';
 import { CalendarDays, CalendarPlus, Plus } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { AddToWeekPicker } from './AddToWeekPicker';
 import { WeekRolloverDialog } from './WeekRolloverDialog';
 import { createInboxTask } from '../../db/repositories/tasks';
 import { QuickAddRow } from '../shared/QuickAddRow';
-import { EntityLabels } from '../shared/EntityLabels';
+import { TaskCard } from '../projects/TaskCard';
 import { TaskDialog } from '../projects/TaskDialog';
 
 const COLUMNS: WeekDay[] = ['Unplanned', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
@@ -42,62 +42,26 @@ const DAY_ACCENT: Record<WeekDay, string> = {
   Fri: 'bg-rose-500/15 text-rose-700 dark:text-rose-400',
 };
 
-function DraggableRow({
-  dragId,
-  label,
-  labels,
-  labelsById,
-  onDoubleClick,
-}: {
-  dragId: string;
-  label: string;
-  labels: string[];
-  labelsById: Map<string, Label>;
-  onDoubleClick: () => void;
-}) {
-  const { setNodeRef, setActivatorNodeRef, listeners, attributes, transform, isDragging } = useDraggable({
-    id: dragId,
-  });
-  return (
-    <li
-      ref={setNodeRef}
-      data-dnd-draggable
-      onDoubleClick={onDoubleClick}
-      style={{ transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined }}
-      className={`flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground shadow-sm hover:border-primary/30 hover:shadow-md ${
-        isDragging ? 'opacity-50' : ''
-      }`}
-    >
-      <button
-        ref={setActivatorNodeRef}
-        aria-label={`Drag ${label}`}
-        className="shrink-0 cursor-grab touch-none text-muted-foreground/60 hover:text-muted-foreground active:cursor-grabbing"
-        {...listeners}
-        {...attributes}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <GripVertical className="h-3.5 w-3.5" />
-      </button>
-      <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
-      {labels.length > 0 && <EntityLabels labelIds={labels} labelsById={labelsById} className="hidden md:inline-flex" />}
-    </li>
-  );
-}
-
 function WeeklyDayColumn({
   day,
   entries,
   labelsById,
+  containerById,
+  projectById,
   onQuickAdd,
   onEdit,
 }: {
   day: WeekDay;
   entries: Task[];
   labelsById: Map<string, Label>;
+  containerById: Map<string, Container>;
+  projectById: Map<string, Project>;
   onQuickAdd: (title: string) => Promise<void>;
   onEdit: (task: Task) => void;
 }) {
   const { setNodeRef } = useDroppable({ id: `t:${day}` });
+  const sorted = sortWeeklyTasks(entries);
+  const ids = sorted.map((t) => t.id);
 
   return (
     <section
@@ -116,18 +80,24 @@ function WeeklyDayColumn({
           {entries.length}
         </span>
       </div>
-      <ul className="flex flex-col gap-1.5 p-2">
-        {entries.map((task) => (
-          <DraggableRow
-            key={task.id}
-            dragId={`t:${task.id}`}
-            label={task.title}
-            labels={task.labels}
-            labelsById={labelsById}
-            onDoubleClick={() => onEdit(task)}
-          />
-        ))}
-      </ul>
+      <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+        <ul className="flex flex-col gap-1.5 p-2">
+          {sorted.map((task) => (
+            <li key={task.id}>
+              <TaskCard
+                task={task}
+                labelsById={labelsById}
+                containerById={containerById}
+                projectById={projectById}
+                showWeeklyBadge={false}
+                showAddToWeek={false}
+                onEdit={onEdit}
+                className={task.completed ? 'opacity-70' : ''}
+              />
+            </li>
+          ))}
+        </ul>
+      </SortableContext>
       <div className="p-2 pt-0">
         <QuickAddRow onAdd={onQuickAdd} />
       </div>
@@ -145,10 +115,15 @@ export function WeeklyPlanView() {
     [],
   );
   const containersAll = useLiveQuery(() => db.containers.toArray(), [], []);
+  const projects = useLiveQuery(() => db.projects.toArray(), [], []);
   const labels = useLiveQuery(listLabels, [], []);
   const containerById = useMemo(
     () => new Map((containersAll ?? []).map((c) => [c.id, c])),
     [containersAll],
+  );
+  const projectById = useMemo(
+    () => new Map((projects ?? []).map((p) => [p.id, p])),
+    [projects],
   );
   const labelsById = useMemo(() => new Map((labels ?? []).map((l) => [l.id, l])), [labels]);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -169,9 +144,21 @@ export function WeeklyPlanView() {
     if (!over) return;
     const activeId = String(active.id);
     const overId = String(over.id);
-    if (activeId.startsWith('t:') && overId.startsWith('t:')) {
-      fireAndForget(setWeeklyDay(activeId.slice(2), overId.slice(2) as WeekDay));
+
+    if (overId.startsWith('t:')) {
+      fireAndForget(setWeeklyDay(activeId, overId.slice(2) as WeekDay));
+      return;
     }
+
+    const task = tasks?.find((t) => t.id === activeId);
+    if (!task?.weekly) return;
+    const day = task.weekly.day;
+    const dayTasks = sortWeeklyTasks((tasks ?? []).filter((t) => t.weekly?.day === day));
+    const oldIndex = dayTasks.findIndex((t) => t.id === activeId);
+    const newIndex = dayTasks.findIndex((t) => t.id === overId);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const next = arrayMove(dayTasks, oldIndex, newIndex).map((t) => t.id);
+    fireAndForget(reorderWeeklyTasks(weekId, day, next));
   }
 
   async function handleQuickAdd(day: WeekDay, title: string) {
@@ -219,6 +206,8 @@ export function WeeklyPlanView() {
                 day={day}
                 entries={visibleTasks.filter((t) => t.weekly?.day === day)}
                 labelsById={labelsById}
+                containerById={containerById}
+                projectById={projectById}
                 onQuickAdd={(title) => handleQuickAdd(day, title)}
                 onEdit={setEditing}
               />
