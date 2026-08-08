@@ -91,6 +91,7 @@ function WeeklyDayColumn({
                 labelsById={labelsById}
                 containerById={containerById}
                 projectById={projectById}
+                sortableId={task.id}
                 showWeeklyBadge={false}
                 showAddToWeek={false}
                 onEdit={onEdit}
