@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { PreviewCard } from '../ui/preview-card';
 import type { Task, Container, Project, Label } from '../../db/schema';
@@ -7,23 +8,62 @@ import { EntityLabels } from './EntityLabels';
 export function EntityHoverCard({
   children,
   content,
-  align = 'start',
 }: {
   children: ReactNode;
   content: ReactNode;
-  align?: 'start' | 'center' | 'end';
 }) {
+  const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
+
+  const floatingAnchor = useMemo(
+    () =>
+      pointer
+        ? {
+            getBoundingClientRect: () =>
+              ({
+                x: pointer.x,
+                y: pointer.y,
+                width: 0,
+                height: 0,
+                top: pointer.y,
+                right: pointer.x,
+                bottom: pointer.y,
+                left: pointer.x,
+              }) as DOMRect,
+          }
+        : undefined,
+    [pointer],
+  );
+
   return (
     <PreviewCard.Root>
       <PreviewCard.Trigger
-        render={<div className="contents" />}
+        render={(props) => {
+          const { ref: _ref, ...rest } = props as unknown as {
+            ref?: unknown;
+            children: ReactNode;
+          };
+          return (
+            <div
+              {...(rest as object)}
+              className="contents"
+              onMouseMove={(e) => setPointer({ x: e.clientX, y: e.clientY })}
+            >
+              {props.children}
+            </div>
+          );
+        }}
         delay={300}
         closeDelay={150}
       >
         {children}
       </PreviewCard.Trigger>
       <PreviewCard.Portal>
-        <PreviewCard.Positioner align={align} side="top" sideOffset={8}>
+        <PreviewCard.Positioner
+          side="top"
+          align="start"
+          sideOffset={10}
+          anchor={floatingAnchor}
+        >
           <PreviewCard.Popup>
             <PreviewCard.Arrow />
             {content}
