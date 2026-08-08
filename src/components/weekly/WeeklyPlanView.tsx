@@ -7,10 +7,13 @@ import {
   useDroppable,
   useSensor,
   useSensors,
+  pointerWithin,
+  closestCenter,
   type DragEndEvent,
   type DragStartEvent,
+  type CollisionDetection,
 } from '@dnd-kit/core';
-import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState } from 'react';
 import { db } from '../../db/db';
@@ -23,6 +26,7 @@ import { autoHandleClosingWeek } from '../../lib/rollover';
 import { fireAndForget } from '../../lib/fireAndForget';
 import { isTaskVisible } from '../../lib/entityVisibility';
 import { sortWeeklyTasks } from '../../lib/weeklyOrder';
+import { resolveWeeklyDrag, type WeeklyDragData } from '../../lib/weeklyDragResolver';
 import type { Task, WeekDay, Label, Container, Project } from '../../db/schema';
 import { CalendarDays, CalendarPlus, Plus } from 'lucide-react';
 import { Button } from '../../components/ui/button';
@@ -61,9 +65,12 @@ function WeeklyDayColumn({
   onQuickAdd: (title: string) => Promise<void>;
   onEdit: (task: Task) => void;
 }) {
-  const { setNodeRef } = useDroppable({ id: `t:${day}` });
+  const { setNodeRef } = useDroppable({
+    id: `day:${day}`,
+    data: { type: 'weekly-day', day } as WeeklyDragData,
+  });
   const sorted = sortWeeklyTasks(entries);
-  const ids = sorted.map((t) => t.id);
+  const ids = sorted.map((t) => `task:${t.id}`);
 
   return (
     <section
@@ -91,7 +98,8 @@ function WeeklyDayColumn({
                 labelsById={labelsById}
                 containerById={containerById}
                 projectById={projectById}
-                sortableId={task.id}
+                sortableId={`task:${task.id}`}
+                extraData={{ type: 'weekly-task', taskId: task.id, day: task.weekly?.day } as WeeklyDragData}
                 showWeeklyBadge={false}
                 showAddToWeek={false}
                 onEdit={onEdit}
@@ -143,42 +151,56 @@ export function WeeklyPlanView() {
     [tasks, containerById],
   );
 
+  const weeklyCollisionDetection: CollisionDetection = (args) => {
+    // First, check if pointer is within a column
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions.length > 0) {
+      const dayCollision = pointerCollisions.find((c) => String(c.id).startsWith('day:'));
+      if (dayCollision) {
+        // If we're over a column, prefer tasks within that column using closestCenter
+        const taskCollisions = closestCenter({
+          ...args,
+          droppableContainers: args.droppableContainers.filter((container) => {
+            const data = container.data.current as WeeklyDragData | undefined;
+            return data?.type === 'weekly-task' && data.day === (dayCollision.data as any)?.day;
+          }),
+        });
+        if (taskCollisions.length > 0) return taskCollisions;
+        return [dayCollision];
+      }
+    }
+    return closestCenter(args);
+  };
+
   function handleDragStart(event: DragStartEvent) {
-    const id = String(event.active.id);
-    setActiveTask((tasks ?? []).find((t) => t.id === id) ?? null);
+    const data = event.active.data.current as WeeklyDragData | undefined;
+    if (data?.type === 'weekly-task') {
+      setActiveTask((tasks ?? []).find((t) => t.id === data.taskId) ?? null);
+    }
   }
 
   function handleDragEnd(event: DragEndEvent) {
     setActiveTask(null);
     const { active, over } = event;
     if (!over) return;
-    const activeId = String(active.id);
-    const overId = String(over.id);
 
-    // Dropped on a day column itself → move to that day.
-    if (overId.startsWith('t:')) {
-      fireAndForget(setWeeklyDay(activeId, overId.slice(2) as WeekDay));
-      return;
+    const activeData = active.data.current as WeeklyDragData | undefined;
+    const overData = over.data.current as WeeklyDragData | undefined;
+
+    const resolution = resolveWeeklyDrag(
+      String(active.id),
+      String(over.id),
+      activeData,
+      overData,
+      tasks ?? [],
+      weekId
+    );
+
+    if (resolution.type === 'move-to-day') {
+      fireAndForget(setWeeklyDay(resolution.taskId, resolution.targetDay));
+    } else if (resolution.type === 'reorder-in-day' && resolution.newOrder) {
+      fireAndForget(reorderWeeklyTasks(weekId, resolution.targetDay, resolution.newOrder));
     }
-
-    const task = tasks?.find((t) => t.id === activeId);
-    if (!task?.weekly) return;
-
-    // Dropped on a task in a different day → move to that day.
-    const overTask = tasks?.find((t) => t.id === overId);
-    if (overTask?.weekly && overTask.weekly.weekId === task.weekly.weekId && overTask.weekly.day !== task.weekly.day) {
-      fireAndForget(setWeeklyDay(activeId, overTask.weekly.day));
-      return;
-    }
-
-    // Otherwise: reorder within the current day.
-    const day = task.weekly.day;
-    const dayTasks = sortWeeklyTasks((tasks ?? []).filter((t) => t.weekly?.day === day));
-    const oldIndex = dayTasks.findIndex((t) => t.id === activeId);
-    const newIndex = dayTasks.findIndex((t) => t.id === overId);
-    if (oldIndex < 0 || newIndex < 0) return;
-    const next = arrayMove(dayTasks, oldIndex, newIndex).map((t) => t.id);
-    fireAndForget(reorderWeeklyTasks(weekId, day, next));
   }
 
   async function handleQuickAdd(day: WeekDay, title: string) {
@@ -218,6 +240,7 @@ export function WeeklyPlanView() {
       {pickerOpen && <AddToWeekPicker onClose={() => setPickerOpen(false)} />}
       <DndContext
         sensors={sensors}
+        collisionDetection={weeklyCollisionDetection}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onDragCancel={() => setActiveTask(null)}
@@ -239,20 +262,21 @@ export function WeeklyPlanView() {
             ))}
           </div>
         </section>
-        <DragOverlay>
-          {activeTask && (
+        <DragOverlay adjustScale={false} dropAnimation={null}>
+          {activeTask ? (
+            <div className="w-52 pointer-events-none">
               <TaskCard
-                task={task}
+                task={activeTask}
                 labelsById={labelsById}
                 containerById={containerById}
                 projectById={projectById}
-                sortableId={task.id}
+                sortableId={null}
                 showWeeklyBadge={false}
                 showAddToWeek={false}
-                onEdit={onEdit}
-                className={task.completed ? 'opacity-70' : ''}
+                className="shadow-xl ring-2 ring-primary/20"
               />
-          )}
+            </div>
+          ) : null}
         </DragOverlay>
       </DndContext>
       {editing && (

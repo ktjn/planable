@@ -19,7 +19,7 @@ describe('SortedTaskList', () => {
     render(<SortedTaskList containerId={INBOX_CONTAINER_ID} labelsById={new Map()} />);
 
     const list = (await screen.findByText('Open A')).closest('ul')!;
-    const items = within(list).getAllByRole('button', { name: /^(Open A|Done B)$/ });
+    const items = within(list).getAllByText(/^(Open A|Done B)$/);
     expect(items[0]).toHaveTextContent('Open A');
     expect(items[1]).toHaveTextContent('Done B');
   });

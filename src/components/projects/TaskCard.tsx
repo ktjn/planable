@@ -17,6 +17,7 @@ export function TaskCard({
   containerById,
   projectById,
   sortableId = task.id,
+  extraData,
   showCheckbox = true,
   showWeeklyBadge = true,
   showAddToWeek = true,
@@ -29,6 +30,7 @@ export function TaskCard({
   containerById?: Map<string, Container>;
   projectById?: Map<string, Project>;
   sortableId?: string | null;
+  extraData?: Record<string, any>;
   showCheckbox?: boolean;
   showWeeklyBadge?: boolean;
   showAddToWeek?: boolean;
@@ -41,6 +43,7 @@ export function TaskCard({
     id: sortableId ?? '__disabled__',
     disabled: sortableId === null,
     animateLayoutChanges: defaultAnimateLayoutChanges,
+    data: extraData,
   });
   const { setNodeRef, setActivatorNodeRef, listeners, attributes, transform, isDragging } = sortable;
 
@@ -55,17 +58,20 @@ export function TaskCard({
 
   return (
     <>
-      <EntityHoverCard content={hoverContent}>
+      <EntityHoverCard content={hoverContent} disabled={isDragging}>
         <div
           ref={setNodeRef}
           data-dnd-draggable
-          style={{ transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined }}
+          style={{
+            transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+            transition: isDragging ? 'none' : undefined,
+          }}
           onDoubleClick={(e) => {
             e.stopPropagation();
             if (onEdit) onEdit(task);
             else setEditing(true);
           }}
-          className={`group flex items-center gap-2 rounded-lg border border-border/70 bg-background/70 px-2.5 py-2 shadow-sm transition-[transform,opacity,box-shadow] duration-200 ease-out hover:border-input hover:bg-background hover:shadow-md ${
+          className={`group flex items-center gap-2 rounded-lg border border-border/70 bg-background/70 px-2.5 py-2 shadow-sm hover:border-input hover:bg-background hover:shadow-md ${
             isDragging ? 'opacity-40' : ''
           } ${className ?? ''}`}
         >
@@ -75,16 +81,16 @@ export function TaskCard({
               aria-label={`Toggle completed for ${task.title}`}
               onCheckedChange={(checked) => fireAndForget(setTaskCompleted(task.id, checked))}
               onClick={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
             />
           )}
-          <button
-            className={`min-w-0 flex-1 truncate text-left text-sm ${
+          <div
+            className={`min-w-0 flex-1 truncate text-left text-sm cursor-default ${
               task.completed ? 'text-muted-foreground line-through' : 'text-foreground'
             }`}
-            onClick={(e) => e.stopPropagation()}
           >
             {task.title}
-          </button>
+          </div>
           <EntityLabels labelIds={task.labels} labelsById={labelsById} />
           {extra}
           {showWeeklyBadge && task.weekly && (
@@ -101,6 +107,7 @@ export function TaskCard({
                   e.stopPropagation();
                   fireAndForget(addToWeek(task.id));
                 }}
+                onDoubleClick={(e) => e.stopPropagation()}
               >
                 <CalendarPlus className="h-3.5 w-3.5" />
               </button>
@@ -113,6 +120,7 @@ export function TaskCard({
                 {...listeners}
                 {...attributes}
                 onClick={(e) => e.stopPropagation()}
+                onDoubleClick={(e) => e.stopPropagation()}
               >
                 <GripVertical className="h-4 w-4" />
               </button>

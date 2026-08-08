@@ -68,7 +68,7 @@ describe('WeeklyPlanView', () => {
 
     render(<WeeklyPlanView />);
     const monSection = (await screen.findByText('Mon')).closest('section')!;
-    const rows = within(monSection).getAllByRole('button', { name: /^(Open|Done)$/ });
+    const rows = within(monSection).getAllByText(/^(Open|Done)$/);
     expect(rows[0]).toHaveTextContent('Open');
     expect(rows[1]).toHaveTextContent('Done');
   });
