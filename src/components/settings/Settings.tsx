@@ -6,6 +6,7 @@ import { getCurrentWeekId, getWeekLabel } from '../../lib/week';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Separator } from '../../components/ui/separator';
 import { ImportExport } from './ImportExport';
+import { DownloadApp } from './DownloadApp';
 
 const SHORTCUTS: { key: string; description: string }[] = [
   { key: 'W', description: 'Go to the Weekly Plan' },
@@ -54,6 +55,9 @@ export function Settings() {
               Export a full JSON backup of projects, containers, tasks, labels, and weekly templates.
             </p>
             <ImportExport />
+            <Separator className="my-3" />
+            <h3 className="text-sm font-medium">Offline copy</h3>
+            <DownloadApp />
           </div>
         </TabsContent>
 
