@@ -30,7 +30,7 @@ describe('TaskDialog', () => {
     await userEvent.type(screen.getByLabelText('Description'), 'Some **markdown**');
     await userEvent.click(screen.getByText('Save'));
 
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
     const tasks = await listTasksByContainer(INBOX_CONTAINER_ID);
     expect(tasks.find((t) => t.title === 'Write spec')?.description).toBe('Some **markdown**');
   });
