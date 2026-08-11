@@ -55,6 +55,13 @@ describe('TaskCard interactions', () => {
     rerender(wrap(<TaskCard task={{ ...baseTask, weekly: null }} labelsById={labelsById} />));
     expect(screen.getByTitle('Add to this week')).toBeInTheDocument();
   });
+
+  it('includes motion-safe checked-state transitions', () => {
+    render(wrap(<TaskCard task={baseTask} labelsById={labelsById} />));
+
+    expect(screen.getByRole('checkbox')).toHaveClass('duration-200', 'motion-reduce:transition-none');
+    expect(screen.getByText('Badged task')).toHaveClass('duration-300', 'motion-reduce:transition-none');
+  });
 });
 
 describe('TaskCard editing', () => {

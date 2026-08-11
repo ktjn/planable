@@ -71,7 +71,7 @@ export function TaskCard({
             if (onEdit) onEdit(task);
             else setEditing(true);
           }}
-          className={`group flex items-center gap-2 rounded-lg border border-border/70 bg-background/70 px-2.5 py-2 shadow-sm hover:border-input hover:bg-background hover:shadow-md ${
+          className={`group flex items-center gap-2 rounded-lg border border-border/70 bg-background/70 px-2.5 py-2 shadow-sm transition-[background-color,border-color,box-shadow,transform] duration-300 ease-out hover:border-input hover:bg-background hover:shadow-md motion-reduce:transition-none ${
             isDragging ? 'opacity-40' : ''
           } ${className ?? ''}`}
         >
@@ -85,7 +85,7 @@ export function TaskCard({
             />
           )}
           <div
-            className={`min-w-0 flex-1 truncate text-left text-sm cursor-default ${
+            className={`min-w-0 flex-1 cursor-default truncate text-left text-sm transition-[color,text-decoration-thickness] duration-300 ease-out motion-reduce:transition-none ${
               task.completed ? 'text-muted-foreground line-through' : 'text-foreground'
             }`}
           >

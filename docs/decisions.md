@@ -35,3 +35,10 @@ unnecessarily.
 | 4 | Not bundled with user data. | A pure copy of the app; data portability already exists via Export/Import. |
 
 Link: `docs/superpowers/specs/2026-08-08-download-app-design.md`.
+
+## 2026-08-11 — Task completion motion
+
+| # | Decision | Rationale |
+|---|----------|-----------|
+| 1 | Use short transitions on the shared task card and checkbox when completion changes. | TaskCard is used across projects, weekly planning, kanban and search, so the interaction should feel consistent everywhere. |
+| 2 | Keep the completion reorder immediate and respect `prefers-reduced-motion`. | The existing local-first feedback remains instant while motion stays optional and accessible. |
