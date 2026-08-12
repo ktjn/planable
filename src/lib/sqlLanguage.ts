@@ -52,7 +52,7 @@ function isParseError(value: unknown): value is SqlParseError {
 
 const KEYWORD_PATTERN = /^(select|update|delete|begin|commit|rollback)\b/i;
 
-const TABLE_ALIASES: Record<string, ConsoleEntityKind> = {
+export const TABLE_ALIASES: Record<string, ConsoleEntityKind> = {
   task: 'task',
   tasks: 'task',
   container: 'container',
@@ -68,14 +68,15 @@ export function looksLikeSql(input: string): boolean {
   return KEYWORD_PATTERN.test(input.trim());
 }
 
-interface Token {
+export interface Token {
   text: string;
   quoted: boolean;
 }
 
 const PUNCTUATION = ['!=', '+=', '-=', '=', ',', '*'];
 
-function tokenize(input: string): Token[] {
+/** Exported for the SQL autocomplete engine, which needs the same quote-aware tokenization to inspect partial input. */
+export function tokenize(input: string): Token[] {
   const tokens: Token[] = [];
   const n = input.length;
   let i = 0;

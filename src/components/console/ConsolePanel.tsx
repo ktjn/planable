@@ -28,6 +28,7 @@ import { parseConsoleQuery } from '../../lib/consoleQuery';
 import { searchItems, type ConsoleItemResult } from '../../lib/consoleSearch';
 import { buildConsoleActions, searchActions, type ConsoleAction } from '../../lib/consoleActions';
 import { suggestCompletion } from '../../lib/consoleAutocomplete';
+import { suggestSqlCompletion } from '../../lib/sqlAutocomplete';
 import { applyBatchOperation, type BatchOperation } from '../../lib/consoleBatch';
 import { parseSqlStatement, type SqlStatement } from '../../lib/sqlLanguage';
 import {
@@ -70,6 +71,17 @@ const KIND_ICON = {
 function pluralize(n: number, noun: string): string {
   return `${n} ${noun}${n === 1 ? '' : 's'}`;
 }
+
+/** Shown when the console is empty, to make the query language and SQL support discoverable. */
+const SAMPLE_QUERIES = [
+  { label: 'Bug-labeled tasks', query: 'task label:bug' },
+  { label: 'Containers in progress', query: 'container status:doing' },
+  { label: "This week's tasks", query: 'day:mon' },
+  { label: 'Jump to Kanban', query: '> goto kanban' },
+  { label: 'Select archived tasks', query: "SELECT * FROM tasks WHERE archived = true" },
+  { label: 'Bulk-complete by label', query: "UPDATE tasks SET completed = true WHERE label = 'bug'" },
+  { label: 'Start a sandbox', query: 'BEGIN' },
+] as const;
 
 /**
  * Builds the single preview/command row for a parsed non-SELECT SQL
@@ -216,7 +228,7 @@ export function ConsolePanel({
   const ghostSuggestion = useMemo(
     () =>
       sqlStatement
-        ? null // the plain-query autocompleter doesn't understand SQL syntax
+        ? suggestSqlCompletion(query, { labels: labels ?? [], projects: projects ?? [] })
         : suggestCompletion(query, {
             labels: labels ?? [],
             projects: projects ?? [],
@@ -321,6 +333,14 @@ export function ConsolePanel({
   function handleExpand() {
     setOpen(true);
     requestAnimationFrame(() => inputRef.current?.focus());
+  }
+
+  function fillSampleQuery(sample: string) {
+    setQuery(sample);
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.setSelectionRange(sample.length, sample.length);
+    });
   }
 
   function selectResult(result: ConsoleResult) {
@@ -512,9 +532,27 @@ export function ConsolePanel({
                 onToggleChecked={result.type === 'item' ? () => toggleChecked(result.item.key) : undefined}
               />
             ))}
-            {results.length === 0 && (
-              <li className="px-3 py-8 text-center text-sm text-muted-foreground">
-                {query.trim() ? 'No matches.' : 'Type to query items, run an action, or a SQL statement.'}
+            {results.length === 0 && query.trim() && (
+              <li className="px-3 py-8 text-center text-sm text-muted-foreground">No matches.</li>
+            )}
+            {results.length === 0 && !query.trim() && (
+              <li className="flex flex-col gap-2 px-3 py-4">
+                <span className="text-center text-sm text-muted-foreground">
+                  Type to query items, run an action, or a SQL statement — or try one of these:
+                </span>
+                <div className="flex flex-wrap justify-center gap-1.5">
+                  {SAMPLE_QUERIES.map((sample) => (
+                    <button
+                      key={sample.label}
+                      type="button"
+                      onClick={() => fillSampleQuery(sample.query)}
+                      className="rounded-full border border-border/70 bg-muted/40 px-2.5 py-1 font-mono text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                      title={sample.query}
+                    >
+                      {sample.label}
+                    </button>
+                  ))}
+                </div>
               </li>
             )}
           </ul>
