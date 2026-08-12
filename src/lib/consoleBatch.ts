@@ -1,14 +1,17 @@
 import type { Container, KanbanStatus, Task } from '../db/schema';
 import type { ConsoleEntityKind } from './consoleQuery';
-import { setTaskCompleted, setTaskArchived, updateTask } from '../db/repositories/tasks';
-import { setContainerArchived, setContainerKanbanStatus, updateContainer } from '../db/repositories/containers';
+import { deleteTask, setTaskCompleted, setTaskArchived, updateTask } from '../db/repositories/tasks';
+import { deleteContainer, setContainerArchived, setContainerKanbanStatus, updateContainer } from '../db/repositories/containers';
+import { deleteProject } from '../db/repositories/projects';
+import { deleteLabel } from '../db/repositories/labels';
 
 export type BatchOperation =
   | { type: 'complete'; value: boolean }
   | { type: 'archive'; value: boolean }
   | { type: 'kanbanStatus'; status: KanbanStatus }
   | { type: 'addLabel'; labelId: string }
-  | { type: 'removeLabel'; labelId: string };
+  | { type: 'removeLabel'; labelId: string }
+  | { type: 'delete' };
 
 export interface BatchContext {
   tasks: Task[];
@@ -55,6 +58,10 @@ export function computeBatchPatch(
       return kind === 'task' || kind === 'container'
         ? { labels: withoutLabel((entity as Task | Container).labels, operation.labelId) }
         : null;
+    case 'delete':
+      // Deletion removes the row rather than patching a field; callers branch on
+      // operation.type === 'delete' before reaching computeBatchPatch.
+      return null;
   }
 }
 
@@ -108,6 +115,14 @@ export async function applyBatchOperation(
           const container = containerById.get(id);
           if (container) jobs.push(updateContainer(id, { labels: withoutLabel(container.labels, operation.labelId) }));
         }
+        break;
+      }
+      case 'delete': {
+        // Protected entities (e.g. the Inbox project/container) throw; skip rather than aborting the batch.
+        if (result.kind === 'task') jobs.push(deleteTask(id).catch(() => {}));
+        else if (result.kind === 'container') jobs.push(deleteContainer(id).catch(() => {}));
+        else if (result.kind === 'project') jobs.push(deleteProject(id).catch(() => {}));
+        else if (result.kind === 'label') jobs.push(deleteLabel(id).catch(() => {}));
         break;
       }
     }

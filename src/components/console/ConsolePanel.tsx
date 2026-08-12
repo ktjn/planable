@@ -18,6 +18,7 @@ import {
   SquareTerminal,
   Tag,
   Tags,
+  Trash2,
   Undo2,
   X,
 } from 'lucide-react';
@@ -43,6 +44,7 @@ import {
 } from '../../lib/sqlExecutor';
 import { addSampleData } from '../../lib/sampleData';
 import { resetAllData } from '../../lib/resetAllData';
+import { loadConsoleHistory, pushConsoleHistory, saveConsoleHistory } from '../../lib/consoleHistory';
 import { useTheme } from '../../lib/use-theme';
 import { fireAndForget } from '../../lib/fireAndForget';
 import { Button } from '../ui/button';
@@ -145,6 +147,8 @@ export function ConsolePanel({
   const [cursorAtEnd, setCursorAtEnd] = useState(true);
   const [checkedKeys, setCheckedKeys] = useState<Set<string>>(new Set());
   const [sandbox, setSandbox] = useState<PendingChange[] | null>(null);
+  const [history, setHistory] = useState<string[]>(() => loadConsoleHistory());
+  const [historyIndex, setHistoryIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toggle: toggleTheme } = useTheme();
 
@@ -240,6 +244,16 @@ export function ConsolePanel({
     cursorAtEnd && ghostSuggestion && ghostSuggestion.startsWith(query) ? ghostSuggestion.slice(query.length) : '';
 
   useEffect(() => {
+    if (!sandbox || sandbox.length === 0) return;
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [sandbox]);
+
+  useEffect(() => {
     function onKeyDown(e: globalThis.KeyboardEvent) {
       const ctrlPressed = e.ctrlKey || e.metaKey;
       if (!ctrlPressed || e.key.toLowerCase() !== 'k') return;
@@ -258,6 +272,30 @@ export function ConsolePanel({
     setQuery('');
     setOpen(false);
     setCheckedKeys(new Set());
+    setHistoryIndex(-1);
+  }
+
+  /** Records a query that actually ran (action fired, item navigated to, or SQL statement executed) into recall history. */
+  function recordHistory(text: string) {
+    setHistory((prev) => {
+      const next = pushConsoleHistory(prev, text);
+      saveConsoleHistory(next);
+      return next;
+    });
+    setHistoryIndex(-1);
+  }
+
+  /** ArrowUp (direction 1) recalls older entries, ArrowDown (direction -1) moves back toward the blank line. */
+  function navigateHistory(direction: 1 | -1) {
+    setHistoryIndex((prev) => {
+      const next = Math.max(-1, Math.min(history.length - 1, prev + direction));
+      const text = next === -1 ? '' : history[next];
+      setQuery(text);
+      requestAnimationFrame(() => {
+        inputRef.current?.setSelectionRange(text.length, text.length);
+      });
+      return next;
+    });
   }
 
   function toggleChecked(key: string) {
@@ -280,7 +318,7 @@ export function ConsolePanel({
     const selected = itemResults.filter((r) => checkedKeys.has(r.key));
     if (selected.length === 0) return;
     if (sandbox) {
-      const changes = buildUpdateChanges(selected, [operation], effectiveData);
+      const changes = operation.type === 'delete' ? buildDeleteChanges(selected) : buildUpdateChanges(selected, [operation], effectiveData);
       setSandbox((prev) => [...(prev ?? []), ...changes]);
     } else {
       await applyBatchOperation(selected, operation, { tasks: tasks ?? [], containers: containers ?? [] });
@@ -337,6 +375,7 @@ export function ConsolePanel({
 
   function fillSampleQuery(sample: string) {
     setQuery(sample);
+    setHistoryIndex(-1);
     requestAnimationFrame(() => {
       inputRef.current?.focus();
       inputRef.current?.setSelectionRange(sample.length, sample.length);
@@ -345,13 +384,16 @@ export function ConsolePanel({
 
   function selectResult(result: ConsoleResult) {
     if (result.type === 'action') {
+      recordHistory(query);
       fireAndForget(Promise.resolve(result.action.run()));
       closeAndClear();
     } else if (result.type === 'item') {
+      recordHistory(query);
       onNavigate(result.item.navigate, result.item.highlightId);
       closeAndClear();
     } else {
       if (result.preview.kind === 'error' || result.preview.kind === 'info') return;
+      recordHistory(query);
       fireAndForget(runSqlPreview(result.preview));
       // Clear the statement but keep the console (and any sandbox) open, so a
       // BEGIN / UPDATE / UPDATE / COMMIT sequence can be typed one line at a time.
@@ -369,10 +411,15 @@ export function ConsolePanel({
       acceptGhostSuggestion();
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIndex((i) => (results.length === 0 ? 0 : (i + 1) % results.length));
+      // Once history browsing has started, keep paging through it (even if a
+      // recalled entry happens to have live results) until the user types or
+      // pages all the way back to the blank line.
+      if (historyIndex >= 0) navigateHistory(-1);
+      else if (results.length > 0) setSelectedIndex((i) => (i + 1) % results.length);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setSelectedIndex((i) => (results.length === 0 ? 0 : (i - 1 + results.length) % results.length));
+      if (historyIndex >= 0 || results.length === 0) navigateHistory(1);
+      else setSelectedIndex((i) => (i - 1 + results.length) % results.length);
     } else if (e.key === 'Enter') {
       e.preventDefault();
       const current = results[selectedIndex];
@@ -401,6 +448,7 @@ export function ConsolePanel({
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
+                setHistoryIndex(-1);
                 updateCursorAtEnd(e.target);
               }}
               onKeyDown={handleInputKeyDown}
@@ -491,6 +539,10 @@ export function ConsolePanel({
             <span>
               · <kbd className="rounded border border-border bg-muted px-1 py-0.5 text-[10px]">Tab</kbd> to
               autocomplete
+            </span>
+            <span>
+              · <kbd className="rounded border border-border bg-muted px-1 py-0.5 text-[10px]">↑</kbd>/
+              <kbd className="rounded border border-border bg-muted px-1 py-0.5 text-[10px]">↓</kbd> for history
             </span>
           </p>
           {isItemsMode && itemResults.length > 0 && (
@@ -747,6 +799,19 @@ function BatchActionBar({
           </Button>
         </>
       )}
+      <Button
+        size="xs"
+        variant="outline"
+        className="text-destructive hover:text-destructive"
+        onClick={() => {
+          if (window.confirm(`Permanently delete ${pluralize(selectedItems.length, 'selected item')}?`)) {
+            onApply({ type: 'delete' });
+          }
+        }}
+      >
+        <Trash2 />
+        Delete
+      </Button>
     </div>
   );
 }

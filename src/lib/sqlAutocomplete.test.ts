@@ -90,6 +90,22 @@ describe('suggestSqlCompletion', () => {
     );
   });
 
+  it('offers OR as well as AND after a complete condition', () => {
+    expect(suggestSqlCompletion("SELECT * FROM tasks WHERE label = bug O", data)).toBe(
+      "SELECT * FROM tasks WHERE label = bug OR ",
+    );
+  });
+
+  it('completes a second field after OR', () => {
+    expect(suggestSqlCompletion("SELECT * FROM tasks WHERE label = bug OR d", data)).toBe(
+      "SELECT * FROM tasks WHERE label = bug OR day ",
+    );
+  });
+
+  it('stops suggesting once a WHERE clause contains parens (parser still accepts them typed out)', () => {
+    expect(suggestSqlCompletion("SELECT * FROM tasks WHERE (label = bug OR label = urgent) AND d", data)).toBeNull();
+  });
+
   it('completes a project value with a multi-word name', () => {
     expect(suggestSqlCompletion('SELECT * FROM tasks WHERE project = web', data)).toBe(
       'SELECT * FROM tasks WHERE project = website redesign ',
@@ -160,5 +176,45 @@ describe('suggestSqlCompletion', () => {
 
   it('returns null for an empty query', () => {
     expect(suggestSqlCompletion('', data)).toBeNull();
+  });
+
+  describe('inside a quoted multi-word value', () => {
+    it('completes a multi-word project name and closes the quote', () => {
+      expect(suggestSqlCompletion("SELECT * FROM tasks WHERE project = 'web", data)).toBe(
+        "SELECT * FROM tasks WHERE project = 'website redesign' ",
+      );
+    });
+
+    it('works with double quotes too', () => {
+      expect(suggestSqlCompletion('SELECT * FROM tasks WHERE project = "web', data)).toBe(
+        'SELECT * FROM tasks WHERE project = "website redesign" ',
+      );
+    });
+
+    it('preserves the case the user already typed inside the quote', () => {
+      expect(suggestSqlCompletion("SELECT * FROM tasks WHERE project = 'Web", data)).toBe(
+        "SELECT * FROM tasks WHERE project = 'Website redesign' ",
+      );
+    });
+
+    it('completes a quoted label value in a SET clause', () => {
+      expect(suggestSqlCompletion("UPDATE tasks SET label += 'b", data)).toBe(
+        "UPDATE tasks SET label += 'bug' ",
+      );
+    });
+
+    it('suggests the first candidate with nothing typed inside the quote yet', () => {
+      expect(suggestSqlCompletion("SELECT * FROM tasks WHERE project = '", data)).toBe(
+        "SELECT * FROM tasks WHERE project = 'website redesign' ",
+      );
+    });
+
+    it('returns null when nothing inside the quote matches', () => {
+      expect(suggestSqlCompletion("SELECT * FROM tasks WHERE project = 'zzz", data)).toBeNull();
+    });
+
+    it('returns null once the quote is closed (back to plain token completion)', () => {
+      expect(suggestSqlCompletion("SELECT * FROM tasks WHERE project = 'Website Redesign'", data)).toBeNull();
+    });
   });
 });

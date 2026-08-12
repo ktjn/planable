@@ -6,8 +6,19 @@ export interface SqlCondition {
   value: string;
 }
 
+/**
+ * A boolean tree over WHERE conditions, produced by standard-precedence
+ * (AND binds tighter than OR) parsing of `field op value (AND|OR ...)*`,
+ * with `(...)` for explicit grouping. A bare condition (no AND/OR) parses
+ * straight to a `condition` node rather than a redundant single-term group.
+ */
+export type SqlWhereExpr =
+  | { kind: 'condition'; condition: SqlCondition }
+  | { kind: 'and'; terms: SqlWhereExpr[] }
+  | { kind: 'or'; terms: SqlWhereExpr[] };
+
 export interface SqlWhere {
-  conditions: SqlCondition[];
+  expr: SqlWhereExpr;
 }
 
 export type SqlAssignment =
@@ -73,7 +84,7 @@ export interface Token {
   quoted: boolean;
 }
 
-const PUNCTUATION = ['!=', '+=', '-=', '=', ',', '*'];
+const PUNCTUATION = ['!=', '+=', '-=', '=', ',', '*', '(', ')'];
 
 /** Exported for the SQL autocomplete engine, which needs the same quote-aware tokenization to inspect partial input. */
 export function tokenize(input: string): Token[] {
@@ -156,28 +167,64 @@ function parseValue(cursor: Cursor): string | SqlParseError {
   return tok.text;
 }
 
-function parseWhere(cursor: Cursor): SqlWhere | SqlParseError {
-  const conditions: SqlCondition[] = [];
-  for (;;) {
-    const fieldTok = cursor.next();
-    if (!fieldTok) return { error: 'Expected a field name after WHERE.' };
-    const field = fieldTok.text.toLowerCase();
+function parseCondition(cursor: Cursor): SqlCondition | SqlParseError {
+  const fieldTok = cursor.next();
+  if (!fieldTok) return { error: 'Expected a field name.' };
+  const field = fieldTok.text.toLowerCase();
 
-    let op: SqlCondition['op'] | null = null;
-    if (cursor.consumeKeyword('!=')) op = '!=';
-    else if (cursor.consumeKeyword('LIKE')) op = 'LIKE';
-    else if (cursor.consumeKeyword('=')) op = '=';
-    if (!op) return { error: `Expected =, !=, or LIKE after "${field}".` };
+  let op: SqlCondition['op'] | null = null;
+  if (cursor.consumeKeyword('!=')) op = '!=';
+  else if (cursor.consumeKeyword('LIKE')) op = 'LIKE';
+  else if (cursor.consumeKeyword('=')) op = '=';
+  if (!op) return { error: `Expected =, !=, or LIKE after "${field}".` };
 
-    const value = parseValue(cursor);
-    if (isParseError(value)) return value;
+  const value = parseValue(cursor);
+  if (isParseError(value)) return value;
 
-    conditions.push({ field, op, value });
+  return { field, op, value };
+}
 
-    if (cursor.consumeKeyword('AND')) continue;
-    break;
+/** `(` orExpr `)` | condition */
+function parseAtom(cursor: Cursor): SqlWhereExpr | SqlParseError {
+  if (cursor.consumeKeyword('(')) {
+    const inner = parseOrExpr(cursor);
+    if (isParseError(inner)) return inner;
+    if (!cursor.consumeKeyword(')')) return { error: 'Expected a closing ")".' };
+    return inner;
   }
-  return { conditions };
+  const condition = parseCondition(cursor);
+  return isParseError(condition) ? condition : { kind: 'condition', condition };
+}
+
+/** atom (AND atom)* — AND binds tighter than OR. */
+function parseAndExpr(cursor: Cursor): SqlWhereExpr | SqlParseError {
+  const first = parseAtom(cursor);
+  if (isParseError(first)) return first;
+  const terms = [first];
+  while (cursor.consumeKeyword('AND')) {
+    const next = parseAtom(cursor);
+    if (isParseError(next)) return next;
+    terms.push(next);
+  }
+  return terms.length === 1 ? terms[0] : { kind: 'and', terms };
+}
+
+/** andExpr (OR andExpr)* */
+function parseOrExpr(cursor: Cursor): SqlWhereExpr | SqlParseError {
+  const first = parseAndExpr(cursor);
+  if (isParseError(first)) return first;
+  const terms = [first];
+  while (cursor.consumeKeyword('OR')) {
+    const next = parseAndExpr(cursor);
+    if (isParseError(next)) return next;
+    terms.push(next);
+  }
+  return terms.length === 1 ? terms[0] : { kind: 'or', terms };
+}
+
+function parseWhere(cursor: Cursor): SqlWhere | SqlParseError {
+  const expr = parseOrExpr(cursor);
+  return isParseError(expr) ? expr : { expr };
 }
 
 function parseAssignment(cursor: Cursor): SqlAssignment | SqlParseError {

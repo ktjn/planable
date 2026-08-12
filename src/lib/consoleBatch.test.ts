@@ -12,10 +12,11 @@ import { createProject } from '../db/repositories/projects';
 import { createContainer, setContainerKanbanStatus } from '../db/repositories/containers';
 import { createTask } from '../db/repositories/tasks';
 import { createLabel } from '../db/repositories/labels';
-import { INBOX_CONTAINER_ID } from '../db/inbox';
+import { INBOX_CONTAINER_ID, INBOX_PROJECT_ID } from '../db/inbox';
+import type { ConsoleEntityKind } from './consoleQuery';
 import type { ConsoleItemResult } from './consoleSearch';
 
-function itemResult(kind: 'task' | 'container', id: string): ConsoleItemResult {
+function itemResult(kind: ConsoleEntityKind, id: string): ConsoleItemResult {
   return {
     key: `${kind}-${id}`,
     id,
@@ -158,5 +159,46 @@ describe('applyBatchOperation', () => {
 
     expect((await db.tasks.get(task.id))?.labels).toEqual([]);
     expect((await db.containers.get(container.id))?.labels).toEqual([]);
+  });
+
+  it('deletes selected tasks, containers, projects, and labels', async () => {
+    const project = await createProject('Doomed project');
+    const container = await createContainer(project.id, 'Doomed container');
+    const task = await createTask({ title: 'Doomed task', projectId: project.id, containerId: container.id });
+    const label = await createLabel('Doomed label', '#ef4444');
+
+    await applyBatchOperation(
+      [
+        itemResult('task', task.id),
+        itemResult('container', container.id),
+        itemResult('project', project.id),
+        itemResult('label', label.id),
+      ],
+      { type: 'delete' },
+      { tasks: [task], containers: [container] },
+    );
+
+    expect(await db.tasks.get(task.id)).toBeUndefined();
+    expect(await db.containers.get(container.id)).toBeUndefined();
+    expect(await db.projects.get(project.id)).toBeUndefined();
+    expect(await db.labels.get(label.id)).toBeUndefined();
+  });
+
+  it('silently skips deleting a protected entity (Inbox) instead of failing the batch', async () => {
+    const project = await createProject('P');
+    const container = await createContainer(project.id, 'C');
+    const task = await createTask({ title: 'A', projectId: project.id, containerId: container.id });
+
+    await expect(
+      applyBatchOperation(
+        [itemResult('container', INBOX_CONTAINER_ID), itemResult('project', INBOX_PROJECT_ID), itemResult('task', task.id)],
+        { type: 'delete' },
+        { tasks: [task], containers: [container] },
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(await db.containers.get(INBOX_CONTAINER_ID)).toBeDefined();
+    expect(await db.projects.get(INBOX_PROJECT_ID)).toBeDefined();
+    expect(await db.tasks.get(task.id)).toBeUndefined();
   });
 });

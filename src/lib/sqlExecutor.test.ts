@@ -9,7 +9,7 @@ vi.mock('../db/db', async () => {
 import { db } from '../db/db';
 import { createProject } from '../db/repositories/projects';
 import { createContainer, setContainerKanbanStatus } from '../db/repositories/containers';
-import { createTask } from '../db/repositories/tasks';
+import { createTask, setTaskArchived } from '../db/repositories/tasks';
 import { createLabel } from '../db/repositories/labels';
 import { INBOX_CONTAINER_ID, INBOX_PROJECT_ID } from '../db/inbox';
 import {
@@ -17,23 +17,27 @@ import {
   buildDeleteChanges,
   buildUpdateChanges,
   commitPendingChanges,
+  conditionsToItemQuery,
   resolveAssignments,
   resolveMatches,
-  whereToItemQuery,
   type PendingChange,
 } from './sqlExecutor';
-import { parseSqlStatement, type SqlUpdate } from './sqlLanguage';
-import type { SqlWhere } from './sqlLanguage';
+import { parseSqlStatement, type SqlUpdate, type SqlWhereExpr } from './sqlLanguage';
 
-describe('whereToItemQuery', () => {
+/** Builds a `field op value (AND field op value)*` WHERE tree for tests that don't care about OR/parens. */
+function and(...conditions: { field: string; op: '=' | '!=' | 'LIKE'; value: string }[]): { expr: SqlWhereExpr } {
+  const nodes: SqlWhereExpr[] = conditions.map((condition) => ({ kind: 'condition', condition }));
+  return { expr: nodes.length === 1 ? nodes[0] : { kind: 'and', terms: nodes } };
+}
+
+describe('conditionsToItemQuery', () => {
   it('translates conditions to filters for categorical fields and terms for text fields', () => {
-    const where: SqlWhere = {
-      conditions: [
+    expect(
+      conditionsToItemQuery('task', [
         { field: 'label', op: '=', value: 'bug' },
         { field: 'title', op: 'LIKE', value: '%nav%' },
-      ],
-    };
-    expect(whereToItemQuery('task', where)).toEqual({
+      ]),
+    ).toEqual({
       kind: 'items',
       types: ['task'],
       filters: [{ field: 'label', value: 'bug', negate: false }],
@@ -42,13 +46,18 @@ describe('whereToItemQuery', () => {
   });
 
   it('treats WHERE 1=1 as matching everything (no filters or terms)', () => {
-    const where: SqlWhere = { conditions: [{ field: '1', op: '=', value: '1' }] };
-    expect(whereToItemQuery('task', where)).toEqual({ kind: 'items', types: ['task'], filters: [], terms: [] });
+    expect(conditionsToItemQuery('task', [{ field: '1', op: '=', value: '1' }])).toEqual({
+      kind: 'items',
+      types: ['task'],
+      filters: [],
+      terms: [],
+    });
   });
 
   it('negates on !=', () => {
-    const where: SqlWhere = { conditions: [{ field: 'archived', op: '!=', value: 'true' }] };
-    expect(whereToItemQuery('task', where).filters).toEqual([{ field: 'archived', value: 'true', negate: true }]);
+    expect(conditionsToItemQuery('task', [{ field: 'archived', op: '!=', value: 'true' }]).filters).toEqual([
+      { field: 'archived', value: 'true', negate: true },
+    ]);
   });
 });
 
@@ -67,7 +76,7 @@ describe('sqlExecutor against a live database', () => {
 
     const matches = resolveMatches(
       'task',
-      { conditions: [{ field: 'label', op: '=', value: 'bug' }] },
+      and({ field: 'label', op: '=', value: 'bug' }),
       {
         tasks: await db.tasks.toArray(),
         containers: await db.containers.toArray(),
@@ -76,6 +85,59 @@ describe('sqlExecutor against a live database', () => {
       },
     );
     expect(matches.map((m) => m.title)).toEqual(['Fix nav']);
+  });
+
+  it('resolveMatches unions OR branches, without duplicating a row matched by more than one branch', async () => {
+    const project = await createProject('Website');
+    const container = await createContainer(project.id, 'Frontend');
+    const bug = await createLabel('Bug', '#ef4444');
+    const docs = await createLabel('Docs', '#8b5cf6');
+    await createTask({ title: 'Fix nav', projectId: project.id, containerId: container.id, labels: [bug.id] });
+    await createTask({ title: 'Write docs', projectId: project.id, containerId: container.id, labels: [docs.id] });
+    await createTask({
+      title: 'Both labels',
+      projectId: project.id,
+      containerId: container.id,
+      labels: [bug.id, docs.id],
+    });
+    await createTask({ title: 'Unrelated', projectId: project.id, containerId: container.id });
+
+    const stmt = parseSqlStatement("SELECT * FROM tasks WHERE label = 'bug' OR label = 'docs'");
+    if (!stmt || 'error' in stmt || stmt.type !== 'select') throw new Error('expected a select statement');
+
+    const effective = {
+      tasks: await db.tasks.toArray(),
+      containers: await db.containers.toArray(),
+      projects: await db.projects.toArray(),
+      labels: await db.labels.toArray(),
+    };
+    const matches = resolveMatches(stmt.table, stmt.where, effective);
+    expect(matches.map((m) => m.title).sort()).toEqual(['Both labels', 'Fix nav', 'Write docs']);
+  });
+
+  it('resolveMatches honors parens overriding AND/OR precedence', async () => {
+    const project = await createProject('Website');
+    const container = await createContainer(project.id, 'Frontend');
+    const bug = await createLabel('Bug', '#ef4444');
+    const docs = await createLabel('Docs', '#8b5cf6');
+    const bugTask = await createTask({ title: 'Bug task', projectId: project.id, containerId: container.id, labels: [bug.id] });
+    await createTask({ title: 'Docs task', projectId: project.id, containerId: container.id, labels: [docs.id] });
+    await setTaskArchived(bugTask.id, true);
+
+    // (label = bug OR label = docs) AND archived = false — the archived bug task should be excluded.
+    const stmt = parseSqlStatement(
+      "SELECT * FROM tasks WHERE (label = 'bug' OR label = 'docs') AND archived = false",
+    );
+    if (!stmt || 'error' in stmt || stmt.type !== 'select') throw new Error('expected a select statement');
+
+    const effective = {
+      tasks: await db.tasks.toArray(),
+      containers: await db.containers.toArray(),
+      projects: await db.projects.toArray(),
+      labels: await db.labels.toArray(),
+    };
+    const matches = resolveMatches(stmt.table, stmt.where, effective);
+    expect(matches.map((m) => m.title)).toEqual(['Docs task']);
   });
 
   it('resolveAssignments maps SET fields to BatchOperations, resolving label names to ids', async () => {
@@ -145,7 +207,7 @@ describe('sqlExecutor against a live database', () => {
     expect(overlaid.tasks[0].completed).toBe(true);
 
     // A SELECT run against the overlay should reflect the staged completion.
-    const matches = resolveMatches('task', { conditions: [{ field: 'done', op: '=', value: 'true' }] }, overlaid);
+    const matches = resolveMatches('task', and({ field: 'done', op: '=', value: 'true' }), overlaid);
     expect(matches.map((m) => m.title)).toEqual(['Keep']);
   });
 
