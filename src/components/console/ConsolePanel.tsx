@@ -1,0 +1,290 @@
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import {
+  ChevronDown,
+  ChevronUp,
+  CornerDownLeft,
+  Folder,
+  Layers,
+  ListChecks,
+  RotateCcw,
+  Sparkles,
+  SquareTerminal,
+  Tags,
+} from 'lucide-react';
+import { db } from '../../db/db';
+import { listProjects } from '../../db/repositories/projects';
+import { listLabels } from '../../db/repositories/labels';
+import { parseConsoleQuery } from '../../lib/consoleQuery';
+import { searchItems, type ConsoleItemResult } from '../../lib/consoleSearch';
+import { buildConsoleActions, searchActions, type ConsoleAction } from '../../lib/consoleActions';
+import { addSampleData } from '../../lib/sampleData';
+import { resetAllData } from '../../lib/resetAllData';
+import { useTheme } from '../../lib/use-theme';
+import { fireAndForget } from '../../lib/fireAndForget';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import type { ActiveView } from '../layout/NavTabs';
+
+type ConsoleResult = { type: 'action'; action: ConsoleAction } | { type: 'item'; item: ConsoleItemResult };
+
+const KIND_ICON = {
+  task: ListChecks,
+  container: Layers,
+  project: Folder,
+  label: Tags,
+} as const;
+
+/**
+ * A foldable, bottom-anchored command console. Plain queries search tasks,
+ * containers, projects, and labels (see docs/decisions.md for the query
+ * language); queries starting with `>` run actions such as navigation, theme
+ * toggling, resetting all data, or seeding sample data.
+ */
+export function ConsolePanel({
+  onNavigate,
+}: {
+  onNavigate: (view: ActiveView, highlightId?: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { toggle: toggleTheme } = useTheme();
+
+  const tasks = useLiveQuery(() => db.tasks.toArray(), [], []);
+  const containers = useLiveQuery(() => db.containers.toArray(), [], []);
+  const projects = useLiveQuery(listProjects, [], []);
+  const labels = useLiveQuery(listLabels, [], []);
+
+  async function handleReset() {
+    if (
+      !window.confirm('Reset will permanently delete all projects, containers, tasks, and labels. Continue?')
+    ) {
+      return;
+    }
+    await resetAllData();
+  }
+
+  async function handleSeed() {
+    await addSampleData();
+  }
+
+  const actions = useMemo(
+    () =>
+      buildConsoleActions({
+        navigate: onNavigate,
+        toggleTheme,
+        resetAll: handleReset,
+        addSampleData: handleSeed,
+        projects: (projects ?? []).map((p) => ({ id: p.id, name: p.name })),
+      }),
+    // handleReset/handleSeed are stable function declarations; only these three change identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [projects, toggleTheme, onNavigate],
+  );
+
+  const results = useMemo<ConsoleResult[]>(() => {
+    const parsed = parseConsoleQuery(query);
+    if (parsed.kind === 'action') {
+      return searchActions(parsed.text, actions).map((action) => ({ type: 'action' as const, action }));
+    }
+    if (!query.trim()) return [];
+    return searchItems(parsed, {
+      tasks: tasks ?? [],
+      containers: containers ?? [],
+      projects: projects ?? [],
+      labels: labels ?? [],
+    }).map((item) => ({ type: 'item' as const, item }));
+  }, [query, actions, tasks, containers, projects, labels]);
+
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [results.length, query]);
+
+  useEffect(() => {
+    function onKeyDown(e: globalThis.KeyboardEvent) {
+      const ctrlPressed = e.ctrlKey || e.metaKey;
+      if (!ctrlPressed || e.key.toLowerCase() !== 'k') return;
+      e.preventDefault();
+      setOpen((current) => {
+        const next = !current;
+        if (next) requestAnimationFrame(() => inputRef.current?.focus());
+        return next;
+      });
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  function closeAndClear() {
+    setQuery('');
+    setOpen(false);
+  }
+
+  function handleExpand() {
+    setOpen(true);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }
+
+  function selectResult(result: ConsoleResult) {
+    if (result.type === 'action') {
+      fireAndForget(Promise.resolve(result.action.run()));
+    } else {
+      onNavigate(result.item.navigate, result.item.highlightId);
+    }
+    closeAndClear();
+  }
+
+  function handleInputKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex((i) => (results.length === 0 ? 0 : (i + 1) % results.length));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex((i) => (results.length === 0 ? 0 : (i - 1 + results.length) % results.length));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const current = results[selectedIndex];
+      if (current) selectResult(current);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      closeAndClear();
+    }
+  }
+
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] backdrop-blur-md">
+      <div className="mx-auto flex w-full max-w-[1440px] items-center gap-2 px-4 py-2 md:px-6">
+        <SquareTerminal className="size-4 shrink-0 text-muted-foreground" />
+        {open ? (
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleInputKeyDown}
+            placeholder='Query items (e.g. task label:bug day:mon) or run "> " actions…'
+            aria-label="Console query"
+            className="h-7 min-w-0 flex-1 bg-transparent font-mono text-sm outline-none placeholder:text-muted-foreground"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={handleExpand}
+            className="flex-1 truncate text-left text-sm text-muted-foreground hover:text-foreground"
+          >
+            Console — press{' '}
+            <kbd className="rounded border border-border bg-muted px-1 py-0.5 text-[10px]">Ctrl</kbd>+
+            <kbd className="rounded border border-border bg-muted px-1 py-0.5 text-[10px]">K</kbd> to query
+            actions and items
+          </button>
+        )}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {open && (
+            <>
+              <Button variant="outline" size="sm" onClick={() => fireAndForget(handleReset())}>
+                <RotateCcw />
+                Reset
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => fireAndForget(handleSeed())}>
+                <Sparkles />
+                Sample data
+              </Button>
+            </>
+          )}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={open ? 'Fold console' : 'Expand console'}
+            aria-expanded={open}
+            onClick={() => (open ? closeAndClear() : handleExpand())}
+          >
+            {open ? <ChevronDown /> : <ChevronUp />}
+          </Button>
+        </div>
+      </div>
+      {open && (
+        <div className="mx-auto w-full max-w-[1440px] animate-in fade-in-0 slide-in-from-bottom-2 px-4 pb-3 duration-150 md:px-6">
+          <p className="mb-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+            <span>Filters:</span>
+            {['label:', 'status:', 'day:', 'project:', 'done:', 'archived:', 'repeat:'].map((f) => (
+              <code key={f} className="rounded bg-muted px-1">
+                {f}
+              </code>
+            ))}
+            <span>· negate with</span>
+            <code className="rounded bg-muted px-1">-</code>
+            <span>· actions start with</span>
+            <code className="rounded bg-muted px-1">&gt;</code>
+          </p>
+          <ul
+            role="listbox"
+            aria-label="Console results"
+            className="max-h-72 overflow-y-auto rounded-xl border border-border bg-card shadow-sm"
+          >
+            {results.map((result, index) => (
+              <ResultRow
+                key={resultKey(result)}
+                result={result}
+                selected={index === selectedIndex}
+                onClick={() => selectResult(result)}
+                onMouseEnter={() => setSelectedIndex(index)}
+              />
+            ))}
+            {results.length === 0 && (
+              <li className="px-3 py-8 text-center text-sm text-muted-foreground">
+                {query.trim() ? 'No matches.' : 'Type to query items, or start with “>” to run an action.'}
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function resultKey(result: ConsoleResult): string {
+  return result.type === 'action' ? `action-${result.action.id}` : result.item.key;
+}
+
+function ResultRow({
+  result,
+  selected,
+  onClick,
+  onMouseEnter,
+}: {
+  result: ConsoleResult;
+  selected: boolean;
+  onClick: () => void;
+  onMouseEnter: () => void;
+}) {
+  const Icon = result.type === 'action' ? SquareTerminal : KIND_ICON[result.item.kind];
+  const title = result.type === 'action' ? result.action.title : result.item.title;
+  const subtitle = result.type === 'action' ? result.action.subtitle : result.item.subtitle;
+  const badges = result.type === 'item' ? result.item.badges : [];
+
+  return (
+    <li>
+      <button
+        type="button"
+        role="option"
+        aria-selected={selected}
+        onClick={onClick}
+        onMouseEnter={onMouseEnter}
+        className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm ${
+          selected ? 'bg-accent/60 text-accent-foreground' : 'hover:bg-accent/30'
+        }`}
+      >
+        <Icon className="size-3.5 shrink-0 text-muted-foreground" />
+        <span className="min-w-0 flex-1 truncate">{title}</span>
+        {subtitle && <span className="shrink-0 truncate text-xs text-muted-foreground">{subtitle}</span>}
+        {badges.map((badge) => (
+          <Badge key={badge} variant="secondary" className="hidden shrink-0 sm:inline-flex">
+            {badge}
+          </Badge>
+        ))}
+        {selected && <CornerDownLeft className="size-3 shrink-0 text-muted-foreground" />}
+      </button>
+    </li>
+  );
+}

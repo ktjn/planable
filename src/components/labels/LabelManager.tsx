@@ -3,12 +3,14 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Plus, Tags, Trash2 } from 'lucide-react';
 import { listLabels, createLabel, updateLabel, deleteLabel } from '../../db/repositories/labels';
 import { fireAndForget } from '../../lib/fireAndForget';
+import { useScrollHighlight, type HighlightRequest } from '../../lib/useScrollHighlight';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 
-export function LabelManager() {
+export function LabelManager({ highlight }: { highlight?: HighlightRequest | null }) {
   const labels = useLiveQuery(listLabels, [], []);
+  const highlighted = useScrollHighlight(highlight);
   const [name, setName] = useState('');
   const [color, setColor] = useState('#3b82f6');
 
@@ -55,8 +57,13 @@ export function LabelManager() {
       </div>
       <ul className="flex flex-wrap gap-2">
         {labels.map((label) => (
-          <li key={label.id} className="flex items-center gap-1">
-            <Badge variant="secondary" className="gap-1">
+          <li key={label.id} id={`label-${label.id}`} className="flex items-center gap-1">
+            <Badge
+              variant="secondary"
+              className={`gap-1 ${
+                highlighted === `label-${label.id}` ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
+              }`}
+            >
               <span
                 style={{ backgroundColor: label.color }}
                 className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
