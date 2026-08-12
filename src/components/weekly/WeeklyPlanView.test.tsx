@@ -68,7 +68,9 @@ describe('WeeklyPlanView', () => {
 
     render(<WeeklyPlanView />);
     const monSection = (await screen.findByText('Mon')).closest('section')!;
-    const rows = within(monSection).getAllByText(/^(Open|Done)$/);
+    // The day header renders immediately, but task rows populate asynchronously
+    // via useLiveQuery, so wait for them rather than asserting synchronously.
+    const rows = await within(monSection).findAllByText(/^(Open|Done)$/);
     expect(rows[0]).toHaveTextContent('Open');
     expect(rows[1]).toHaveTextContent('Done');
   });
