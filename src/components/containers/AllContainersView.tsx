@@ -5,6 +5,7 @@ import { db } from '../../db/db';
 import { listLabels } from '../../db/repositories/labels';
 import { createTask } from '../../db/repositories/tasks';
 import { isContainerVisible } from '../../lib/entityVisibility';
+import { useScrollHighlight, type HighlightRequest } from '../../lib/useScrollHighlight';
 import type { Container, Label, Project } from '../../db/schema';
 import { Badge } from '../ui/badge';
 import { EntityLabels } from '../shared/EntityLabels';
@@ -13,7 +14,8 @@ import { SortedTaskList } from '../shared/SortedTaskList';
 import { ContainerDialog } from '../projects/ContainerDialog';
 import { EntityHoverCard, ContainerHoverCardContent } from '../shared/EntityHoverCard';
 
-export function AllContainersView() {
+export function AllContainersView({ highlight }: { highlight?: HighlightRequest | null }) {
+  const highlighted = useScrollHighlight(highlight);
   const containers = useLiveQuery(
     () => db.containers.toArray().then((arr) => arr.filter(isContainerVisible)),
     [],
@@ -72,6 +74,7 @@ export function AllContainersView() {
             projectById={projectById}
             containerById={containerById}
             taskCount={countByContainer.get(container.id) ?? 0}
+            highlighted={highlighted === `container-${container.id}`}
           >
             {projectById.get(container.projectId)?.name && (
               <span className="shrink-0 text-xs text-muted-foreground">
@@ -95,6 +98,7 @@ function ContainerRow({
   projectById,
   containerById,
   children,
+  highlighted = false,
 }: {
   container: Container;
   labelsById: Map<string, Label>;
@@ -102,6 +106,7 @@ function ContainerRow({
   projectById?: Map<string, Project>;
   containerById?: Map<string, Container>;
   children: React.ReactNode;
+  highlighted?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -109,8 +114,11 @@ function ContainerRow({
   return (
     <>
       <li
+        id={`container-${container.id}`}
         onDoubleClick={() => setEditing(true)}
-        className="flex flex-col gap-2 rounded-xl border border-border/70 bg-card px-3 py-2.5 shadow-sm"
+        className={`flex flex-col gap-2 rounded-xl border border-border/70 bg-card px-3 py-2.5 shadow-sm ${
+          highlighted ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
+        }`}
       >
         <div className="flex items-center gap-2">
           <button

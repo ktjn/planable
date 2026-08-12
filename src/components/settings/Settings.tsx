@@ -15,6 +15,7 @@ const SHORTCUTS: { key: string; description: string }[] = [
   { key: 'S', description: 'Open settings' },
   { key: '/', description: 'Quick search' },
   { key: 'Ctrl+F', description: 'Search tasks' },
+  { key: 'Ctrl+K', description: 'Toggle the command console' },
 ];
 
 export function Settings() {

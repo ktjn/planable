@@ -24,6 +24,7 @@ export function TaskCard({
   extra,
   className,
   onEdit,
+  highlighted = false,
 }: {
   task: Task;
   labelsById: Map<string, Label>;
@@ -37,6 +38,8 @@ export function TaskCard({
   extra?: ReactNode;
   className?: string;
   onEdit?: (task: Task) => void;
+  /** Briefly rings the card, e.g. after being selected from the console. */
+  highlighted?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const sortable = useSortable({
@@ -61,6 +64,7 @@ export function TaskCard({
       <EntityHoverCard content={hoverContent} disabled={isDragging}>
         <div
           ref={setNodeRef}
+          id={`task-${task.id}`}
           data-dnd-draggable
           style={{
             transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
@@ -73,7 +77,7 @@ export function TaskCard({
           }}
           className={`group flex items-center gap-2 rounded-lg border border-border/70 bg-background/70 px-2.5 py-2 shadow-sm transition-[background-color,border-color,box-shadow,transform] duration-300 ease-out hover:border-input hover:bg-background hover:shadow-md motion-reduce:transition-none ${
             isDragging ? 'opacity-40' : ''
-          } ${className ?? ''}`}
+          } ${highlighted ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''} ${className ?? ''}`}
         >
           {showCheckbox && (
             <Checkbox

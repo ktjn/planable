@@ -36,6 +36,19 @@ unnecessarily.
 
 Link: `docs/superpowers/specs/2026-08-08-download-app-design.md`.
 
+## 2026-08-12 — CLI console, query language, reset & sample data
+
+| # | Decision | Rationale |
+|---|----------|-----------|
+| 1 | Add a foldable console anchored to the bottom of the viewport (`ConsolePanel`), toggled by `Ctrl+K` or clicking its collapsed bar. | Keeps it out of the way by default while staying reachable from every view, similar to a terminal/devtools drawer. |
+| 2 | Introduce a small query language: plain text queries **items** (tasks, containers, projects, labels); a leading `>` runs an **action** (command palette). | Two clearly distinct modes read well as one input: "search for something" vs. "do something." |
+| 3 | Item query grammar: optional bare type keywords (`task`/`container`/`project`/`label`, singular or plural), `field:value` filters, free-text terms, all space-separated; `"quoted phrases"` for multi-word terms; any filter or term can be negated with a leading `-`. | Mirrors familiar search syntax (GitHub/Jira/Linear issue search) so it needs no dedicated tutorial. |
+| 4 | Supported filters: `label:`, `status:` (kanban), `day:` (weekly), `project:`, `done:`/`completed:`, `archived:`, `repeat:` (task/container only where the field applies), plus `color:` for labels. Using a filter that only applies to one kind (e.g. `status:`) implicitly narrows the search to that kind; unknown filter names are ignored rather than excluding every result. | Keeps queries short — `status:doing` alone is enough, no need to also type `container`. Silently ignoring unknown fields avoids a query language that punishes typos with an empty result set. |
+| 5 | Selecting an item result navigates to the view that renders it (All Tasks / All Containers / Labels / the item's Project) and briefly rings the matching card after scrolling it into view. | That view is the "canvas" the console projects results onto — no new item-detail surface was needed. |
+| 6 | `resetAllData()` reuses `importData` with every table emptied (Inbox is always re-seeded by `importData`), rather than a bespoke clear routine. | One codepath already handles wiping + restoring the Inbox correctly; a second implementation would drift. |
+| 7 | `addSampleData()` is purely additive (fresh UUIDs each run) and exercises every schema aspect in one pass: 2 projects, all 4 kanban statuses, an archived container, 5 labels, tasks that are completed/archived/multi-labelled/weekly-scheduled across several days including Unplanned, and one repeating task with its week template. | "Should include all aspects" is easiest to keep true, and easiest to verify in a test, as a single deliberately-varied dataset rather than several small ones. |
+| 8 | Reset and Sample data are both console header buttons *and* `> reset` / `> sample data` actions, sharing the same underlying functions. | One codepath for state mutation; the console remains fully keyboard-driven without losing the discoverable buttons. |
+
 ## 2026-08-11 — Task completion motion
 
 | # | Decision | Rationale |

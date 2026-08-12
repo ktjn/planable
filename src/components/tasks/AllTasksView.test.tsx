@@ -1,5 +1,5 @@
 // src/components/tasks/AllTasksView.test.tsx
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 
@@ -53,5 +53,18 @@ describe('AllTasksView', () => {
     await userEvent.dblClick(await screen.findByText('Editable'));
 
     expect(await screen.findByText('Edit task')).toBeInTheDocument();
+  });
+
+  it('rings the card matching a console highlight request', async () => {
+    const task = await createTask({
+      title: 'Highlight me',
+      projectId: INBOX_PROJECT_ID,
+      containerId: INBOX_CONTAINER_ID,
+    });
+
+    render(<AllTasksView highlight={{ id: `task-${task.id}`, key: 1 }} />);
+
+    const card = await screen.findByText('Highlight me');
+    await waitFor(() => expect(card.closest(`#task-${task.id}`)).toHaveClass('ring-2'));
   });
 });

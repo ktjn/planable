@@ -5,12 +5,14 @@ import { ListChecks } from 'lucide-react';
 import { db } from '../../db/db';
 import { listLabels } from '../../db/repositories/labels';
 import { isTaskVisible } from '../../lib/entityVisibility';
+import { useScrollHighlight, type HighlightRequest } from '../../lib/useScrollHighlight';
 import type { Task } from '../../db/schema';
 import { TaskDialog } from '../projects/TaskDialog';
 import { TaskCard } from '../projects/TaskCard';
 
-export function AllTasksView() {
+export function AllTasksView({ highlight }: { highlight?: HighlightRequest | null }) {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const highlighted = useScrollHighlight(highlight);
   const tasks = useLiveQuery(
     () => db.tasks.toArray().then((arr) => arr.sort((a, b) => a.title.localeCompare(b.title))),
     [],
@@ -49,6 +51,7 @@ export function AllTasksView() {
               sortableId={null}
               showAddToWeek={false}
               onEdit={setEditingTask}
+              highlighted={highlighted === `task-${task.id}`}
               extra={
                 projectById.get(task.projectId) && (
                   <span className="shrink-0 text-xs text-muted-foreground">
