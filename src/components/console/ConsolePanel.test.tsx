@@ -243,6 +243,147 @@ describe('ConsolePanel', () => {
     expect(screen.queryByText('1 selected')).not.toBeInTheDocument();
   });
 
+  it('SELECT feeds the same checkbox/item pipeline as the plain query language', async () => {
+    const project = await createProject('Website');
+    const container = await createContainer(project.id, 'Frontend');
+    await createTask({ title: 'Sqlselect Match', projectId: project.id, containerId: container.id });
+    await createLabel('Sqlselectlabel', '#ef4444');
+
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    await userEvent.type(
+      screen.getByLabelText('Console query'),
+      "SELECT * FROM tasks WHERE title LIKE '%sqlselect%'",
+    );
+
+    expect(await screen.findByText('Sqlselect Match')).toBeInTheDocument();
+    // It's checkable, exactly like a plain-text query result.
+    expect(screen.getByLabelText('Select Sqlselect Match')).toBeInTheDocument();
+  });
+
+  it('shows a non-runnable error row when UPDATE is missing a WHERE clause', async () => {
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    await userEvent.type(screen.getByLabelText('Console query'), 'UPDATE tasks SET completed = true');
+
+    expect(await screen.findByText(/WHERE clause/i)).toBeInTheDocument();
+  });
+
+  it('UPDATE runs immediately (autocommit) when there is no active transaction', async () => {
+    const project = await createProject('Website');
+    const container = await createContainer(project.id, 'Frontend');
+    const task = await createTask({
+      title: 'Autoupdate Task',
+      projectId: project.id,
+      containerId: container.id,
+    });
+
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    await userEvent.type(
+      screen.getByLabelText('Console query'),
+      "UPDATE tasks SET completed = true WHERE title LIKE '%autoupdate%'{Enter}",
+    );
+
+    await waitFor(async () => expect((await db.tasks.get(task.id))?.completed).toBe(true));
+  });
+
+  it('DELETE FROM ... WHERE 1=1 deletes every matching row immediately outside a transaction', async () => {
+    const project = await createProject('Website');
+    const container = await createContainer(project.id, 'Frontend');
+    const task = await createTask({
+      title: 'Autodelete Task',
+      projectId: project.id,
+      containerId: container.id,
+    });
+
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    await userEvent.type(
+      screen.getByLabelText('Console query'),
+      "DELETE FROM tasks WHERE title LIKE '%autodelete%'{Enter}",
+    );
+
+    await waitFor(async () => expect(await db.tasks.get(task.id)).toBeUndefined());
+  });
+
+  it('BEGIN, UPDATE, and COMMIT: staged changes are invisible to the database until COMMIT, then are written atomically', async () => {
+    const project = await createProject('Website');
+    const container = await createContainer(project.id, 'Frontend');
+    const task = await createTask({
+      title: 'Sandboxflow Task',
+      projectId: project.id,
+      containerId: container.id,
+    });
+
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    const input = screen.getByLabelText('Console query');
+
+    await userEvent.type(input, 'BEGIN{Enter}');
+    expect(await screen.findByText(/1 pending|0 pending/)).toBeInTheDocument();
+
+    await userEvent.type(
+      input,
+      "UPDATE tasks SET completed = true WHERE title LIKE '%sandboxflow%'{Enter}",
+    );
+
+    // Staged, not yet written.
+    expect((await db.tasks.get(task.id))?.completed).toBe(false);
+    expect(await screen.findByText(/1 pending/)).toBeInTheDocument();
+
+    // A SELECT run inside the still-open transaction reflects the staged edit.
+    await userEvent.type(input, "SELECT * FROM tasks WHERE done = true");
+    expect(await screen.findByText('Sandboxflow Task')).toBeInTheDocument();
+
+    await userEvent.clear(input);
+    await userEvent.type(input, 'COMMIT{Enter}');
+
+    await waitFor(async () => expect((await db.tasks.get(task.id))?.completed).toBe(true));
+    expect(screen.queryByText(/pending/)).not.toBeInTheDocument();
+  });
+
+  it('ROLLBACK discards staged changes without writing them', async () => {
+    const project = await createProject('Website');
+    const container = await createContainer(project.id, 'Frontend');
+    const task = await createTask({
+      title: 'Rollbackflow Task',
+      projectId: project.id,
+      containerId: container.id,
+    });
+
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    const input = screen.getByLabelText('Console query');
+
+    await userEvent.type(input, 'BEGIN{Enter}');
+    await userEvent.type(
+      input,
+      "DELETE FROM tasks WHERE title LIKE '%rollbackflow%'{Enter}",
+    );
+    expect(await screen.findByText(/1 pending/)).toBeInTheDocument();
+
+    await userEvent.type(input, 'ROLLBACK{Enter}');
+
+    expect(screen.queryByText(/pending/)).not.toBeInTheDocument();
+    expect(await db.tasks.get(task.id)).toBeDefined();
+  });
+
+  it('a sandbox survives folding the console (Escape) and reopening it', async () => {
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    const input = screen.getByLabelText('Console query');
+    await userEvent.type(input, 'BEGIN{Enter}');
+    await screen.findByText(/pending/);
+
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByLabelText('Console query')).not.toBeInTheDocument();
+    expect(screen.getByText(/pending/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByText(/Console — press/i));
+    expect(await screen.findByText(/0 pending/)).toBeInTheDocument();
+  });
+
   it('toggles open and closed with Ctrl+K', async () => {
     render(<ConsolePanel onNavigate={vi.fn()} />);
     expect(screen.queryByLabelText('Console query')).not.toBeInTheDocument();

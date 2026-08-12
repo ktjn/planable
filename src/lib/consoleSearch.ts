@@ -56,7 +56,7 @@ const DAY_ALIASES: Record<string, WeekDay> = {
   backlog: 'Unplanned',
 };
 
-const STATUS_ALIASES: Record<string, KanbanStatus> = {
+export const STATUS_ALIASES: Record<string, KanbanStatus> = {
   todo: 'Todo',
   doing: 'Doing',
   'in-progress': 'Doing',
@@ -67,7 +67,7 @@ const STATUS_ALIASES: Record<string, KanbanStatus> = {
   completed: 'Done',
 };
 
-function parseBool(value: string): boolean {
+export function parseBool(value: string): boolean {
   return ['true', 'yes', 'y', '1'].includes(value.toLowerCase());
 }
 

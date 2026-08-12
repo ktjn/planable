@@ -1,5 +1,5 @@
 import type { Container, KanbanStatus, Task } from '../db/schema';
-import type { ConsoleItemResult } from './consoleSearch';
+import type { ConsoleEntityKind } from './consoleQuery';
 import { setTaskCompleted, setTaskArchived, updateTask } from '../db/repositories/tasks';
 import { setContainerArchived, setContainerKanbanStatus, updateContainer } from '../db/repositories/containers';
 
@@ -15,21 +15,56 @@ export interface BatchContext {
   containers: Container[];
 }
 
-function withLabel(labels: string[], labelId: string): string[] {
+/** Anything with an entity id and a console kind can be batch-targeted — a full ConsoleItemResult isn't required. */
+export interface BatchTarget {
+  id: string;
+  kind: ConsoleEntityKind;
+}
+
+export function withLabel(labels: string[], labelId: string): string[] {
   return labels.includes(labelId) ? labels : [...labels, labelId];
 }
 
-function withoutLabel(labels: string[], labelId: string): string[] {
+export function withoutLabel(labels: string[], labelId: string): string[] {
   return labels.filter((id) => id !== labelId);
 }
 
 /**
- * Applies one bulk operation to every selected console result that supports
- * it, silently skipping results of the wrong kind (e.g. `complete` ignores
+ * Computes the field patch a BatchOperation would write to a given task or
+ * container, without writing it — used to preview a staged (sandboxed) SQL
+ * UPDATE against live data before it's committed. Returns null for
+ * operations that don't apply to the entity's kind.
+ */
+export function computeBatchPatch(
+  entity: Task | Container,
+  kind: ConsoleEntityKind,
+  operation: BatchOperation,
+): Partial<Task & Container> | null {
+  switch (operation.type) {
+    case 'complete':
+      return kind === 'task' ? { completed: operation.value, completedDate: operation.value ? Date.now() : null } : null;
+    case 'archive':
+      return kind === 'task' || kind === 'container' ? { archived: operation.value } : null;
+    case 'kanbanStatus':
+      return kind === 'container' ? { kanban: { status: operation.status } } : null;
+    case 'addLabel':
+      return kind === 'task' || kind === 'container'
+        ? { labels: withLabel((entity as Task | Container).labels, operation.labelId) }
+        : null;
+    case 'removeLabel':
+      return kind === 'task' || kind === 'container'
+        ? { labels: withoutLabel((entity as Task | Container).labels, operation.labelId) }
+        : null;
+  }
+}
+
+/**
+ * Applies one bulk operation to every selected target that supports it,
+ * silently skipping targets of the wrong kind (e.g. `complete` ignores
  * containers) rather than failing the whole batch.
  */
 export async function applyBatchOperation(
-  selected: ConsoleItemResult[],
+  selected: BatchTarget[],
   operation: BatchOperation,
   ctx: BatchContext,
 ): Promise<void> {
