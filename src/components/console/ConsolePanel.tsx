@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
+  Archive,
+  ArchiveRestore,
+  CheckCheck,
   ChevronDown,
   ChevronUp,
   CornerDownLeft,
@@ -10,7 +13,10 @@ import {
   RotateCcw,
   Sparkles,
   SquareTerminal,
+  Tag,
   Tags,
+  Undo2,
+  X,
 } from 'lucide-react';
 import { db } from '../../db/db';
 import { listProjects } from '../../db/repositories/projects';
@@ -19,6 +25,7 @@ import { parseConsoleQuery } from '../../lib/consoleQuery';
 import { searchItems, type ConsoleItemResult } from '../../lib/consoleSearch';
 import { buildConsoleActions, searchActions, type ConsoleAction } from '../../lib/consoleActions';
 import { suggestCompletion } from '../../lib/consoleAutocomplete';
+import { applyBatchOperation, type BatchOperation } from '../../lib/consoleBatch';
 import { addSampleData } from '../../lib/sampleData';
 import { resetAllData } from '../../lib/resetAllData';
 import { useTheme } from '../../lib/use-theme';
@@ -26,6 +33,7 @@ import { fireAndForget } from '../../lib/fireAndForget';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import type { ActiveView } from '../layout/NavTabs';
+import type { KanbanStatus, Label } from '../../db/schema';
 
 type ConsoleResult = { type: 'action'; action: ConsoleAction } | { type: 'item'; item: ConsoleItemResult };
 
@@ -51,6 +59,7 @@ export function ConsolePanel({
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [cursorAtEnd, setCursorAtEnd] = useState(true);
+  const [checkedKeys, setCheckedKeys] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
   const { toggle: toggleTheme } = useTheme();
 
@@ -86,23 +95,34 @@ export function ConsolePanel({
     [projects, toggleTheme, onNavigate],
   );
 
+  const parsedQuery = useMemo(() => parseConsoleQuery(query), [query]);
+  const isItemsMode = parsedQuery.kind === 'items';
+
   const results = useMemo<ConsoleResult[]>(() => {
-    const parsed = parseConsoleQuery(query);
-    if (parsed.kind === 'action') {
-      return searchActions(parsed.text, actions).map((action) => ({ type: 'action' as const, action }));
+    if (parsedQuery.kind === 'action') {
+      return searchActions(parsedQuery.text, actions).map((action) => ({ type: 'action' as const, action }));
     }
     if (!query.trim()) return [];
-    return searchItems(parsed, {
+    return searchItems(parsedQuery, {
       tasks: tasks ?? [],
       containers: containers ?? [],
       projects: projects ?? [],
       labels: labels ?? [],
     }).map((item) => ({ type: 'item' as const, item }));
-  }, [query, actions, tasks, containers, projects, labels]);
+  }, [parsedQuery, query, actions, tasks, containers, projects, labels]);
+
+  const itemResults = useMemo(
+    () => results.filter((r): r is { type: 'item'; item: ConsoleItemResult } => r.type === 'item').map((r) => r.item),
+    [results],
+  );
 
   useEffect(() => {
     setSelectedIndex(0);
   }, [results.length, query]);
+
+  useEffect(() => {
+    setCheckedKeys(new Set());
+  }, [query]);
 
   const ghostSuggestion = useMemo(
     () =>
@@ -134,6 +154,30 @@ export function ConsolePanel({
   function closeAndClear() {
     setQuery('');
     setOpen(false);
+    setCheckedKeys(new Set());
+  }
+
+  function toggleChecked(key: string) {
+    setCheckedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setCheckedKeys((prev) => {
+      const allChecked = itemResults.length > 0 && itemResults.every((r) => prev.has(r.key));
+      return allChecked ? new Set() : new Set(itemResults.map((r) => r.key));
+    });
+  }
+
+  async function runBatch(operation: BatchOperation) {
+    const selected = itemResults.filter((r) => checkedKeys.has(r.key));
+    if (selected.length === 0) return;
+    await applyBatchOperation(selected, operation, { tasks: tasks ?? [], containers: containers ?? [] });
+    setCheckedKeys(new Set());
   }
 
   function updateCursorAtEnd(el: HTMLInputElement) {
@@ -270,6 +314,29 @@ export function ConsolePanel({
               autocomplete
             </span>
           </p>
+          {isItemsMode && itemResults.length > 0 && (
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/70 bg-muted/30 px-2.5 py-1.5">
+              <label className="flex items-center gap-1.5 text-xs">
+                <input
+                  type="checkbox"
+                  aria-label="Select all results"
+                  checked={itemResults.every((r) => checkedKeys.has(r.key))}
+                  onChange={toggleSelectAll}
+                  className="size-3.5"
+                />
+                <span className="text-muted-foreground">
+                  {checkedKeys.size > 0 ? `${checkedKeys.size} selected` : `Select all ${itemResults.length}`}
+                </span>
+              </label>
+              {checkedKeys.size > 0 && (
+                <BatchActionBar
+                  selectedItems={itemResults.filter((r) => checkedKeys.has(r.key))}
+                  labels={labels ?? []}
+                  onApply={(operation) => fireAndForget(runBatch(operation))}
+                />
+              )}
+            </div>
+          )}
           <ul
             role="listbox"
             aria-label="Console results"
@@ -280,8 +347,10 @@ export function ConsolePanel({
                 key={resultKey(result)}
                 result={result}
                 selected={index === selectedIndex}
+                checked={result.type === 'item' && checkedKeys.has(result.item.key)}
                 onClick={() => selectResult(result)}
                 onMouseEnter={() => setSelectedIndex(index)}
+                onToggleChecked={result.type === 'item' ? () => toggleChecked(result.item.key) : undefined}
               />
             ))}
             {results.length === 0 && (
@@ -303,13 +372,17 @@ function resultKey(result: ConsoleResult): string {
 function ResultRow({
   result,
   selected,
+  checked,
   onClick,
   onMouseEnter,
+  onToggleChecked,
 }: {
   result: ConsoleResult;
   selected: boolean;
+  checked: boolean;
   onClick: () => void;
   onMouseEnter: () => void;
+  onToggleChecked?: () => void;
 }) {
   const Icon = result.type === 'action' ? SquareTerminal : KIND_ICON[result.item.kind];
   const title = result.type === 'action' ? result.action.title : result.item.title;
@@ -328,6 +401,16 @@ function ResultRow({
           selected ? 'bg-accent/60 text-accent-foreground' : 'hover:bg-accent/30'
         }`}
       >
+        {onToggleChecked && (
+          <input
+            type="checkbox"
+            aria-label={`Select ${title}`}
+            checked={checked}
+            onChange={onToggleChecked}
+            onClick={(e) => e.stopPropagation()}
+            className="size-3.5 shrink-0"
+          />
+        )}
         <Icon className="size-3.5 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate">{title}</span>
         {subtitle && <span className="shrink-0 truncate text-xs text-muted-foreground">{subtitle}</span>}
@@ -339,5 +422,108 @@ function ResultRow({
         {selected && <CornerDownLeft className="size-3 shrink-0 text-muted-foreground" />}
       </button>
     </li>
+  );
+}
+
+const KANBAN_STATUSES: KanbanStatus[] = ['Todo', 'Doing', 'Blocked', 'Done'];
+
+/** Bulk-action toolbar shown once at least one console result is checked. */
+function BatchActionBar({
+  selectedItems,
+  labels,
+  onApply,
+}: {
+  selectedItems: ConsoleItemResult[];
+  labels: Label[];
+  onApply: (operation: BatchOperation) => void;
+}) {
+  const [labelId, setLabelId] = useState('');
+  const kinds = new Set(selectedItems.map((r) => r.kind));
+  const hasTask = kinds.has('task');
+  const hasContainer = kinds.has('container');
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {hasTask && (
+        <>
+          <Button size="xs" variant="outline" onClick={() => onApply({ type: 'complete', value: true })}>
+            <CheckCheck />
+            Complete
+          </Button>
+          <Button size="xs" variant="outline" onClick={() => onApply({ type: 'complete', value: false })}>
+            <Undo2 />
+            Uncomplete
+          </Button>
+        </>
+      )}
+      {(hasTask || hasContainer) && (
+        <>
+          <Button size="xs" variant="outline" onClick={() => onApply({ type: 'archive', value: true })}>
+            <Archive />
+            Archive
+          </Button>
+          <Button size="xs" variant="outline" onClick={() => onApply({ type: 'archive', value: false })}>
+            <ArchiveRestore />
+            Unarchive
+          </Button>
+        </>
+      )}
+      {hasContainer && (
+        <select
+          aria-label="Set kanban status"
+          defaultValue=""
+          className="h-6 rounded-md border border-input bg-transparent px-1.5 text-xs"
+          onChange={(e) => {
+            const status = e.target.value as KanbanStatus | '';
+            if (status) onApply({ type: 'kanbanStatus', status });
+            e.target.value = '';
+          }}
+        >
+          <option value="" disabled>
+            Set status…
+          </option>
+          {KANBAN_STATUSES.map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
+        </select>
+      )}
+      {(hasTask || hasContainer) && labels.length > 0 && (
+        <>
+          <select
+            aria-label="Label to add or remove"
+            value={labelId}
+            onChange={(e) => setLabelId(e.target.value)}
+            className="h-6 rounded-md border border-input bg-transparent px-1.5 text-xs"
+          >
+            <option value="">Label…</option>
+            {labels.map((label) => (
+              <option key={label.id} value={label.id}>
+                {label.name}
+              </option>
+            ))}
+          </select>
+          <Button
+            size="xs"
+            variant="outline"
+            disabled={!labelId}
+            onClick={() => labelId && onApply({ type: 'addLabel', labelId })}
+          >
+            <Tag />
+            Add
+          </Button>
+          <Button
+            size="xs"
+            variant="outline"
+            disabled={!labelId}
+            onClick={() => labelId && onApply({ type: 'removeLabel', labelId })}
+          >
+            <X />
+            Remove
+          </Button>
+        </>
+      )}
+    </div>
   );
 }

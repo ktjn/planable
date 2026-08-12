@@ -144,6 +144,105 @@ describe('ConsolePanel', () => {
     expect(input).toHaveValue('> goto kanban ');
   });
 
+  it('batch-completes checked tasks via the action bar', async () => {
+    const project = await createProject('Website');
+    const container = await createContainer(project.id, 'Frontend');
+    const a = await createTask({ title: 'Batchcomplete Alpha', projectId: project.id, containerId: container.id });
+    const b = await createTask({ title: 'Batchcomplete Beta', projectId: project.id, containerId: container.id });
+
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    await userEvent.type(screen.getByLabelText('Console query'), 'task batchcomplete');
+
+    await userEvent.click(await screen.findByLabelText('Select Batchcomplete Alpha'));
+    await userEvent.click(screen.getByLabelText('Select Batchcomplete Beta'));
+    expect(screen.getByText('2 selected')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /^complete$/i }));
+
+    await waitFor(async () => expect((await db.tasks.get(a.id))?.completed).toBe(true));
+    expect((await db.tasks.get(b.id))?.completed).toBe(true);
+    // Selection clears itself after applying.
+    expect(screen.queryByText('2 selected')).not.toBeInTheDocument();
+  });
+
+  it('"select all" checks every visible result and toggles back off', async () => {
+    const project = await createProject('Website');
+    const container = await createContainer(project.id, 'Frontend');
+    await createTask({ title: 'Selectall Alpha', projectId: project.id, containerId: container.id });
+    await createTask({ title: 'Selectall Beta', projectId: project.id, containerId: container.id });
+
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    await userEvent.type(screen.getByLabelText('Console query'), 'task selectall');
+    await screen.findByLabelText('Select Selectall Alpha');
+
+    await userEvent.click(screen.getByLabelText('Select all results'));
+    expect(await screen.findByText('2 selected')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByLabelText('Select all results'));
+    expect(screen.queryByText('2 selected')).not.toBeInTheDocument();
+  });
+
+  it('batch-archives a mixed selection of a task and a container', async () => {
+    const project = await createProject('Website');
+    const container = await createContainer(project.id, 'Archivemix Container');
+    const task = await createTask({
+      title: 'Archivemix Task',
+      projectId: project.id,
+      containerId: container.id,
+    });
+
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    await userEvent.type(screen.getByLabelText('Console query'), 'archivemix');
+
+    await userEvent.click(await screen.findByLabelText('Select Archivemix Task'));
+    await userEvent.click(screen.getByLabelText('Select Archivemix Container'));
+
+    await userEvent.click(screen.getByRole('button', { name: /^archive$/i }));
+
+    await waitFor(async () => expect((await db.tasks.get(task.id))?.archived).toBe(true));
+    expect((await db.containers.get(container.id))?.archived).toBe(true);
+  });
+
+  it('adds a label to checked results via the label select', async () => {
+    const project = await createProject('Website');
+    const container = await createContainer(project.id, 'Frontend');
+    const task = await createTask({ title: 'Labeltarget Task', projectId: project.id, containerId: container.id });
+    await createLabel('Batchlabelxyz', '#f97316');
+
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    await userEvent.type(screen.getByLabelText('Console query'), 'task labeltarget');
+    await userEvent.click(await screen.findByLabelText('Select Labeltarget Task'));
+
+    await userEvent.selectOptions(screen.getByLabelText('Label to add or remove'), 'Batchlabelxyz');
+    await userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+
+    await waitFor(async () => {
+      const updated = await db.tasks.get(task.id);
+      expect(updated?.labels.length).toBe(1);
+    });
+  });
+
+  it('clears the checked selection when the query changes', async () => {
+    const project = await createProject('Website');
+    const container = await createContainer(project.id, 'Frontend');
+    await createTask({ title: 'Clearselect Task', projectId: project.id, containerId: container.id });
+
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    const input = screen.getByLabelText('Console query');
+    await userEvent.type(input, 'task clearselect');
+    await userEvent.click(await screen.findByLabelText('Select Clearselect Task'));
+    expect(screen.getByText('1 selected')).toBeInTheDocument();
+
+    await userEvent.type(input, ' extra');
+
+    expect(screen.queryByText('1 selected')).not.toBeInTheDocument();
+  });
+
   it('toggles open and closed with Ctrl+K', async () => {
     render(<ConsolePanel onNavigate={vi.fn()} />);
     expect(screen.queryByLabelText('Console query')).not.toBeInTheDocument();

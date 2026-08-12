@@ -15,6 +15,16 @@ unnecessarily.
 | 5 | Rendered as classic shell-style inline ghost text — an `aria-hidden` overlay behind the input showing the typed text invisibly plus the suggested remainder in muted color — rather than a separate suggestions dropdown. | Reuses the single input the console already has; doesn't compete visually with the existing results list below it. |
 | 6 | `Tab` and `ArrowRight` both accept the suggestion (only when the cursor is at the end of the input); accepting never submits the query. | Matches fish/zsh autosuggestion conventions; not auto-running on accept keeps `> reset`-style completions safe. |
 
+## 2026-08-12 — Console batch selection and bulk actions
+
+| # | Decision | Rationale |
+|---|----------|-----------|
+| 1 | Batch update is checkbox multi-select on the console's item results plus a bulk action bar, not a `> verb query` command form. | The user picked this directly: seeing exactly what's checked before acting is safer for destructive-ish operations (archive, bulk relabel) than a command that fires on every match the moment `Enter` is pressed. |
+| 2 | Selection lives in `ConsolePanel` as a `Set<key>` scoped to the *current* results, not a cross-query cart. It's cleared whenever the query text changes, and again automatically right after a batch operation is applied. | Keeps the mental model simple: search, check, act, done — no hidden accumulated state to lose track of across edits. |
+| 3 | First-version bulk operations: complete/uncomplete, archive/unarchive, set kanban status (containers), add/remove one label. Delete was left out. | Covers the highest-value, lowest-risk edits; irreversible bulk delete can follow later behind its own confirmation if it turns out to be needed. |
+| 4 | `applyBatchOperation` (in `src/lib/consoleBatch.ts`) silently skips a selected result that doesn't support the operation (e.g. `complete` on a container, `kanbanStatus` on a task) instead of erroring, and swallows the one repo call that can throw (archiving the Inbox container). | The selection is often a deliberately mixed bag of tasks and containers from one query; per-kind buttons only appear when relevant, but the underlying apply stays defensive so a stray selection never aborts the whole batch. |
+| 5 | `ConsoleItemResult` gained an explicit `id` field (previously the entity id was implicit in `key`, parsed via string-splitting). | The batch layer needs the raw id directly; parsing it back out of a composite key like `task-<uuid>` was fragile and unnecessary once there's a real consumer. |
+
 ## 2026-08-08 — Hover cards, weekly tick-off, all-containers view, entity pickers
 
 | # | Decision | Rationale |
