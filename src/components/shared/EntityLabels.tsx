@@ -22,11 +22,11 @@ export function EntityLabels<L extends Label>({
   if (labels.length === 0) return null;
 
   return (
-    <span className={`inline-flex shrink-0 items-center gap-1 ${className ?? ''}`}>
+    <span className={`flex min-w-0 flex-wrap items-center gap-1 ${className ?? ''}`}>
       {labels.map((label) => (
         <span
           key={label.id}
-          className="inline-flex max-w-24 items-center gap-1 overflow-hidden rounded-full border px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground"
+          className="inline-flex max-w-32 shrink-0 items-center gap-1 overflow-hidden rounded-full border px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground"
           style={{ borderColor: `color-mix(in oklab, ${label.color} 45%, transparent)` }}
         >
           <span

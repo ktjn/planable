@@ -13,7 +13,8 @@ const STATUS_VALUES = ['todo', 'doing', 'blocked', 'done'];
 const DAY_VALUES = ['mon', 'tue', 'wed', 'thu', 'fri', 'unplanned'];
 const BOOL_VALUES = ['true', 'false'];
 
-function firstStartingWith(candidates: string[], prefix: string): string | undefined {
+/** Exported for reuse by the SQL autocomplete engine. */
+export function firstStartingWith(candidates: string[], prefix: string): string | undefined {
   const lower = prefix.toLowerCase();
   return candidates.find((c) => c.toLowerCase().startsWith(lower) && c.toLowerCase() !== lower);
 }

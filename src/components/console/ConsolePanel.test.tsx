@@ -384,6 +384,45 @@ describe('ConsolePanel', () => {
     expect(await screen.findByText(/0 pending/)).toBeInTheDocument();
   });
 
+  it('Tab-completes inside a SQL WHERE clause, scoped to the table', async () => {
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    const input = screen.getByLabelText('Console query') as HTMLInputElement;
+
+    await userEvent.type(input, 'SELECT * FROM tasks W');
+    await userEvent.keyboard('{Tab}');
+    expect(input).toHaveValue('SELECT * FROM tasks WHERE ');
+
+    await userEvent.type(input, 'l');
+    await userEvent.keyboard('{Tab}');
+    expect(input).toHaveValue('SELECT * FROM tasks WHERE label ');
+  });
+
+  it('Tab-completes a SQL WHERE value from live label data', async () => {
+    await createLabel('Sqlautocompletelabel', '#ef4444');
+
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    const input = screen.getByLabelText('Console query') as HTMLInputElement;
+
+    await userEvent.type(input, 'SELECT * FROM tasks WHERE label = sqlauto');
+    await userEvent.keyboard('{Tab}');
+
+    expect(input).toHaveValue('SELECT * FROM tasks WHERE label = sqlautocompletelabel ');
+  });
+
+  it('clicking a sample query fills the input without running it', async () => {
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Start a sandbox' }));
+
+    const input = screen.getByLabelText('Console query') as HTMLInputElement;
+    expect(input).toHaveValue('BEGIN');
+    // Filling a sample never executes it on its own.
+    expect(screen.queryByText(/pending/)).not.toBeInTheDocument();
+  });
+
   it('toggles open and closed with Ctrl+K', async () => {
     render(<ConsolePanel onNavigate={vi.fn()} />);
     expect(screen.queryByLabelText('Console query')).not.toBeInTheDocument();
