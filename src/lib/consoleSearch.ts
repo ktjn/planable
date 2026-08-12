@@ -4,6 +4,7 @@ import type { ConsoleEntityKind, ItemQuery, QueryFilter, QueryTerm } from './con
 
 export interface ConsoleItemResult {
   key: string;
+  id: string;
   kind: ConsoleEntityKind;
   title: string;
   subtitle?: string;
@@ -55,7 +56,7 @@ const DAY_ALIASES: Record<string, WeekDay> = {
   backlog: 'Unplanned',
 };
 
-const STATUS_ALIASES: Record<string, KanbanStatus> = {
+export const STATUS_ALIASES: Record<string, KanbanStatus> = {
   todo: 'Todo',
   doing: 'Doing',
   'in-progress': 'Doing',
@@ -66,7 +67,7 @@ const STATUS_ALIASES: Record<string, KanbanStatus> = {
   completed: 'Done',
 };
 
-function parseBool(value: string): boolean {
+export function parseBool(value: string): boolean {
   return ['true', 'yes', 'y', '1'].includes(value.toLowerCase());
 }
 
@@ -181,6 +182,7 @@ function taskResult(task: Task, containerById: Map<string, Container>, projectBy
   if (task.weekly) badges.push(task.weekly.repeatWeekly ? 'Repeats weekly' : `Week: ${task.weekly.day}`);
   return {
     key: `task-${task.id}`,
+    id: task.id,
     kind: 'task',
     title: task.title,
     subtitle: [project?.name, container?.name].filter(Boolean).join(' › '),
@@ -197,6 +199,7 @@ function containerResult(container: Container, projectById: Map<string, Project>
   if (container.archived) badges.push('Archived');
   return {
     key: `container-${container.id}`,
+    id: container.id,
     kind: 'container',
     title: container.name,
     subtitle: project?.name,
@@ -209,6 +212,7 @@ function containerResult(container: Container, projectById: Map<string, Project>
 function projectResult(project: Project): ConsoleItemResult {
   return {
     key: `project-${project.id}`,
+    id: project.id,
     kind: 'project',
     title: project.name,
     badges: [],
@@ -219,6 +223,7 @@ function projectResult(project: Project): ConsoleItemResult {
 function labelResult(label: Label): ConsoleItemResult {
   return {
     key: `label-${label.id}`,
+    id: label.id,
     kind: 'label',
     title: label.name,
     badges: [],
