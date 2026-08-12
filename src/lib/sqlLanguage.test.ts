@@ -28,21 +28,87 @@ describe('parseSqlStatement', () => {
     expect(parsed).toEqual({
       type: 'select',
       table: 'task',
-      where: { conditions: [{ field: 'label', op: '=', value: 'bug' }] },
+      where: { expr: { kind: 'condition', condition: { field: 'label', op: '=', value: 'bug' } } },
     });
   });
 
-  it('parses AND-combined conditions', () => {
+  it('parses AND-combined conditions as an "and" node, not a redundant single-term group', () => {
     const parsed = parseSqlStatement("SELECT * FROM tasks WHERE label = 'bug' AND day = mon");
     expect(parsed).toEqual({
       type: 'select',
       table: 'task',
       where: {
-        conditions: [
-          { field: 'label', op: '=', value: 'bug' },
-          { field: 'day', op: '=', value: 'mon' },
-        ],
+        expr: {
+          kind: 'and',
+          terms: [
+            { kind: 'condition', condition: { field: 'label', op: '=', value: 'bug' } },
+            { kind: 'condition', condition: { field: 'day', op: '=', value: 'mon' } },
+          ],
+        },
       },
+    });
+  });
+
+  it('parses OR-combined conditions as an "or" node', () => {
+    const parsed = parseSqlStatement("SELECT * FROM tasks WHERE label = 'bug' OR label = 'urgent'");
+    expect(parsed).toEqual({
+      type: 'select',
+      table: 'task',
+      where: {
+        expr: {
+          kind: 'or',
+          terms: [
+            { kind: 'condition', condition: { field: 'label', op: '=', value: 'bug' } },
+            { kind: 'condition', condition: { field: 'label', op: '=', value: 'urgent' } },
+          ],
+        },
+      },
+    });
+  });
+
+  it('gives AND higher precedence than OR (a AND b OR c parses as (a AND b) OR c)', () => {
+    const parsed = parseSqlStatement('SELECT * FROM tasks WHERE label = bug AND day = mon OR label = urgent');
+    if (!parsed || 'error' in parsed || parsed.type !== 'select' || !parsed.where) {
+      throw new Error('expected a select with a where clause');
+    }
+    expect(parsed.where.expr).toEqual({
+      kind: 'or',
+      terms: [
+        {
+          kind: 'and',
+          terms: [
+            { kind: 'condition', condition: { field: 'label', op: '=', value: 'bug' } },
+            { kind: 'condition', condition: { field: 'day', op: '=', value: 'mon' } },
+          ],
+        },
+        { kind: 'condition', condition: { field: 'label', op: '=', value: 'urgent' } },
+      ],
+    });
+  });
+
+  it('parens override precedence: a AND (b OR c)', () => {
+    const parsed = parseSqlStatement('SELECT * FROM tasks WHERE label = bug AND (day = mon OR day = tue)');
+    if (!parsed || 'error' in parsed || parsed.type !== 'select' || !parsed.where) {
+      throw new Error('expected a select with a where clause');
+    }
+    expect(parsed.where.expr).toEqual({
+      kind: 'and',
+      terms: [
+        { kind: 'condition', condition: { field: 'label', op: '=', value: 'bug' } },
+        {
+          kind: 'or',
+          terms: [
+            { kind: 'condition', condition: { field: 'day', op: '=', value: 'mon' } },
+            { kind: 'condition', condition: { field: 'day', op: '=', value: 'tue' } },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('rejects an unclosed paren', () => {
+    expect(parseSqlStatement('SELECT * FROM tasks WHERE (label = bug')).toEqual({
+      error: expect.stringContaining(')'),
     });
   });
 
@@ -50,12 +116,12 @@ describe('parseSqlStatement', () => {
     expect(parseSqlStatement("SELECT * FROM tasks WHERE archived != true")).toEqual({
       type: 'select',
       table: 'task',
-      where: { conditions: [{ field: 'archived', op: '!=', value: 'true' }] },
+      where: { expr: { kind: 'condition', condition: { field: 'archived', op: '!=', value: 'true' } } },
     });
     expect(parseSqlStatement("SELECT * FROM tasks WHERE title LIKE '%nav%'")).toEqual({
       type: 'select',
       table: 'task',
-      where: { conditions: [{ field: 'title', op: 'LIKE', value: '%nav%' }] },
+      where: { expr: { kind: 'condition', condition: { field: 'title', op: 'LIKE', value: '%nav%' } } },
     });
   });
 
@@ -76,7 +142,7 @@ describe('parseSqlStatement', () => {
       type: 'update',
       table: 'task',
       assignments: [{ field: 'completed', op: '=', value: 'true' }],
-      where: { conditions: [{ field: 'label', op: '=', value: 'bug' }] },
+      where: { expr: { kind: 'condition', condition: { field: 'label', op: '=', value: 'bug' } } },
     });
   });
 
@@ -89,7 +155,7 @@ describe('parseSqlStatement', () => {
         { field: 'status', op: '=', value: 'doing' },
         { field: 'archived', op: '=', value: 'false' },
       ],
-      where: { conditions: [{ field: 'project', op: '=', value: 'Web' }] },
+      where: { expr: { kind: 'condition', condition: { field: 'project', op: '=', value: 'Web' } } },
     });
   });
 
@@ -98,7 +164,7 @@ describe('parseSqlStatement', () => {
       type: 'update',
       table: 'task',
       assignments: [{ field: 'label', op: '+=', value: 'urgent' }],
-      where: { conditions: [{ field: 'label', op: '=', value: 'bug' }] },
+      where: { expr: { kind: 'condition', condition: { field: 'label', op: '=', value: 'bug' } } },
     });
     expect(parseSqlStatement("UPDATE tasks SET label -= urgent WHERE label = bug")).toMatchObject({
       assignments: [{ field: 'label', op: '-=', value: 'urgent' }],
@@ -128,7 +194,7 @@ describe('parseSqlStatement', () => {
       type: 'update',
       table: 'task',
       assignments: [{ field: 'completed', op: '=', value: 'true' }],
-      where: { conditions: [{ field: '1', op: '=', value: '1' }] },
+      where: { expr: { kind: 'condition', condition: { field: '1', op: '=', value: '1' } } },
     });
   });
 
@@ -136,7 +202,7 @@ describe('parseSqlStatement', () => {
     expect(parseSqlStatement("DELETE FROM tasks WHERE archived = true")).toEqual({
       type: 'delete',
       table: 'task',
-      where: { conditions: [{ field: 'archived', op: '=', value: 'true' }] },
+      where: { expr: { kind: 'condition', condition: { field: 'archived', op: '=', value: 'true' } } },
     });
   });
 

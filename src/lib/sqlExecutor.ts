@@ -3,7 +3,7 @@ import type { Container, Label, Project, Task } from '../db/schema';
 import type { ConsoleEntityKind, ItemQuery, QueryFilter, QueryTerm } from './consoleQuery';
 import { searchItems, parseBool, STATUS_ALIASES, type ConsoleItemResult, type ConsoleSearchContext } from './consoleSearch';
 import { computeBatchPatch, withLabel, withoutLabel, type BatchOperation } from './consoleBatch';
-import type { SqlAssignment, SqlWhere } from './sqlLanguage';
+import type { SqlAssignment, SqlCondition, SqlWhere, SqlWhereExpr } from './sqlLanguage';
 import { deleteTask, setTaskArchived, setTaskCompleted, updateTask } from '../db/repositories/tasks';
 import { deleteContainer, setContainerArchived, setContainerKanbanStatus, updateContainer } from '../db/repositories/containers';
 import { deleteProject } from '../db/repositories/projects';
@@ -40,11 +40,15 @@ const CATEGORICAL_FIELDS = new Set([
   'kanban',
 ]);
 
-/** Translates a parsed SQL WHERE clause into the same filter/term shape the plain query language uses. */
-export function whereToItemQuery(table: ConsoleEntityKind, where: SqlWhere | null): ItemQuery {
+/**
+ * Translates one flat AND-group of conditions (one DNF branch of a WHERE
+ * clause) into the same filter/term shape the plain query language uses.
+ * Exported for isolated unit testing of the field/term/negate mapping.
+ */
+export function conditionsToItemQuery(table: ConsoleEntityKind, conditions: SqlCondition[]): ItemQuery {
   const filters: QueryFilter[] = [];
   const terms: QueryTerm[] = [];
-  for (const cond of where?.conditions ?? []) {
+  for (const cond of conditions) {
     // WHERE 1=1 is the documented "match every row" escape hatch.
     if (cond.field === '1' && cond.value === '1' && cond.op === '=') continue;
     const negate = cond.op === '!=';
@@ -58,8 +62,47 @@ export function whereToItemQuery(table: ConsoleEntityKind, where: SqlWhere | nul
   return { kind: 'items', types: [table], filters, terms };
 }
 
+/**
+ * Expands a WHERE boolean tree into disjunctive normal form: an array of
+ * AND-groups (each a flat SqlCondition[]) whose union is OR'd together.
+ * Parens are already resolved into the tree's shape by the parser, so no
+ * extra grouping logic is needed here — only the AND/OR distribution.
+ */
+function whereExprToDNF(expr: SqlWhereExpr): SqlCondition[][] {
+  if (expr.kind === 'condition') return [[expr.condition]];
+  if (expr.kind === 'or') return expr.terms.flatMap(whereExprToDNF);
+  // AND: cartesian-merge every term's branches together.
+  return expr.terms.reduce<SqlCondition[][]>(
+    (acc, term) => {
+      const termBranches = whereExprToDNF(term);
+      return acc.flatMap((accBranch) => termBranches.map((termBranch) => [...accBranch, ...termBranch]));
+    },
+    [[]],
+  );
+}
+
+const RESULT_LIMIT = 30;
+
+/**
+ * Resolves a WHERE clause (which may contain OR / parens) against live data
+ * by expanding it to DNF and unioning each AND-branch's matches — reusing
+ * `searchItems`/`conditionsToItemQuery` for every branch keeps per-field and
+ * per-table matching semantics (including the existing "field not valid for
+ * this table zeroes the whole branch" rule) identical to a single flat WHERE.
+ */
 export function resolveMatches(table: ConsoleEntityKind, where: SqlWhere | null, ctx: ConsoleSearchContext): ConsoleItemResult[] {
-  return searchItems(whereToItemQuery(table, where), ctx);
+  const branches = where ? whereExprToDNF(where.expr) : [[]];
+  const seen = new Set<string>();
+  const results: ConsoleItemResult[] = [];
+  for (const branch of branches) {
+    for (const item of searchItems(conditionsToItemQuery(table, branch), ctx)) {
+      if (seen.has(item.key)) continue;
+      seen.add(item.key);
+      results.push(item);
+      if (results.length >= RESULT_LIMIT) return results;
+    }
+  }
+  return results;
 }
 
 /** Applies staged sandbox changes to a live data snapshot, so SELECT/WHERE see the would-be result. */

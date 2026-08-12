@@ -206,6 +206,51 @@ describe('ConsolePanel', () => {
     expect((await db.containers.get(container.id))?.archived).toBe(true);
   });
 
+  it('batch-deletes checked results after confirming, and does nothing if the confirm is declined', async () => {
+    const project = await createProject('Website');
+    const container = await createContainer(project.id, 'Bulkdelete Container');
+    const task = await createTask({ title: 'Bulkdelete Task', projectId: project.id, containerId: container.id });
+
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    await userEvent.type(screen.getByLabelText('Console query'), 'bulkdelete');
+    await userEvent.click(await screen.findByLabelText('Select Bulkdelete Task'));
+
+    confirmSpy.mockReturnValueOnce(false);
+    await userEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(await db.tasks.get(task.id)).toBeDefined();
+
+    confirmSpy.mockReturnValueOnce(true);
+    await userEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+    await waitFor(async () => expect(await db.tasks.get(task.id)).toBeUndefined());
+  });
+
+  it('stages a batch delete in the sandbox instead of deleting immediately', async () => {
+    const project = await createProject('Website');
+    const container = await createContainer(project.id, 'Sandboxdelete Container');
+    const task = await createTask({ title: 'Sandboxdelete Task', projectId: project.id, containerId: container.id });
+
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    await userEvent.type(screen.getByLabelText('Console query'), 'BEGIN{Enter}');
+    await screen.findByText(/0 pending/);
+
+    await userEvent.clear(screen.getByLabelText('Console query'));
+    await userEvent.type(screen.getByLabelText('Console query'), 'sandboxdelete');
+    await userEvent.click(await screen.findByLabelText('Select Sandboxdelete Task'));
+
+    confirmSpy.mockReturnValueOnce(true);
+    await userEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+
+    await screen.findByText(/1 pending/);
+    // Staged, not yet written.
+    expect(await db.tasks.get(task.id)).toBeDefined();
+
+    await userEvent.click(screen.getByRole('button', { name: /commit/i }));
+    await waitFor(async () => expect(await db.tasks.get(task.id)).toBeUndefined());
+  });
+
   it('adds a label to checked results via the label select', async () => {
     const project = await createProject('Website');
     const container = await createContainer(project.id, 'Frontend');
@@ -384,6 +429,42 @@ describe('ConsolePanel', () => {
     expect(await screen.findByText(/0 pending/)).toBeInTheDocument();
   });
 
+  it('warns before unload only while a sandbox has pending (not just open) changes', async () => {
+    const project = await createProject('Website');
+    const container = await createContainer(project.id, 'Frontend');
+    await createTask({ title: 'Beforeunloadflow Task', projectId: project.id, containerId: container.id });
+
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    const input = screen.getByLabelText('Console query');
+
+    const before = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(before);
+    expect(before.defaultPrevented).toBe(false);
+
+    await userEvent.type(input, 'BEGIN{Enter}');
+    await screen.findByText(/0 pending/);
+
+    // An open-but-empty sandbox has nothing to lose yet — no warning.
+    const emptySandbox = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(emptySandbox);
+    expect(emptySandbox.defaultPrevented).toBe(false);
+
+    await userEvent.type(input, "UPDATE tasks SET completed = true WHERE title LIKE '%beforeunloadflow%'{Enter}");
+    await screen.findByText(/1 pending/);
+
+    const duringSandbox = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(duringSandbox);
+    expect(duringSandbox.defaultPrevented).toBe(true);
+
+    await userEvent.click(screen.getByRole('button', { name: /rollback/i }));
+    await waitFor(() => expect(screen.queryByText(/pending/)).not.toBeInTheDocument());
+
+    const afterRollback = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(afterRollback);
+    expect(afterRollback.defaultPrevented).toBe(false);
+  });
+
   it('Tab-completes inside a SQL WHERE clause, scoped to the table', async () => {
     render(<ConsolePanel onNavigate={vi.fn()} />);
     await userEvent.click(screen.getByText(/press/i));
@@ -421,6 +502,46 @@ describe('ConsolePanel', () => {
     expect(input).toHaveValue('BEGIN');
     // Filling a sample never executes it on its own.
     expect(screen.queryByText(/pending/)).not.toBeInTheDocument();
+  });
+
+  it('ArrowUp recalls the previously-run query when the input is empty, ArrowDown moves back to blank', async () => {
+    const project = await createProject('Website');
+    const container = await createContainer(project.id, 'Frontend');
+    await createTask({ title: 'Fix nav overlap', projectId: project.id, containerId: container.id });
+
+    const onNavigate = vi.fn();
+    render(<ConsolePanel onNavigate={onNavigate} />);
+    await userEvent.click(screen.getByText(/press/i));
+    await userEvent.type(screen.getByLabelText('Console query'), 'nav');
+    await userEvent.click(await screen.findByText('Fix nav overlap'));
+    expect(onNavigate).toHaveBeenCalled();
+
+    // Selecting an item closes the console; reopen it to browse history.
+    await userEvent.click(screen.getByText(/press/i));
+    const input = screen.getByLabelText('Console query') as HTMLInputElement;
+    expect(input).toHaveValue('');
+
+    await userEvent.click(input);
+    await userEvent.keyboard('{ArrowUp}');
+    expect(input).toHaveValue('nav');
+
+    await userEvent.keyboard('{ArrowDown}');
+    expect(input).toHaveValue('');
+  });
+
+  it('persists console history across remounts via localStorage', async () => {
+    const { unmount } = render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    await userEvent.type(screen.getByLabelText('Console query'), '> reset{Enter}');
+    await waitFor(async () => expect(await db.projects.count()).toBe(1));
+    unmount();
+
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    const input = screen.getByLabelText('Console query') as HTMLInputElement;
+    await userEvent.click(input);
+    await userEvent.keyboard('{ArrowUp}');
+    expect(input).toHaveValue('> reset');
   });
 
   it('toggles open and closed with Ctrl+K', async () => {
