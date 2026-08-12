@@ -4,6 +4,17 @@ Record notable design and product decisions here. Each entry should state the
 decision, the date, and the rationale so future work does not re-litigate them
 unnecessarily.
 
+## 2026-08-12 — Console Tab-completion (ghost text)
+
+| # | Decision | Rationale |
+|---|----------|-----------|
+| 1 | Keep the existing query language as-is; add inline "ghost text" Tab-completion on top of it rather than redesigning into a verb-first command grammar. | Asked directly: the smaller change keeps everyone's existing `label:bug` / `> reset` muscle memory working while still making the console feel like a real shell. |
+| 2 | Completion is computed by a pure function, `suggestCompletion(query, data)` in `src/lib/consoleAutocomplete.ts`, that returns the full replacement string for the current token (field name, filter value, or `>` action invocation) or `null`. | Same shape as `parseConsoleQuery`/`searchItems` — trivially unit-testable without mounting the component. |
+| 3 | Only the token after the last space is completed; a `field:` filter with no colon offers both type keywords and `field:` names (fields take priority on ties), a `field:value` filter offers values from live data (label names, project names) or fixed alias lists (kanban status, weekday, booleans). Unknown fields (e.g. `color:`) suggest nothing rather than guessing. | Mirrors the parser's own `FIELD_KINDS` rules, so what autocompletes is always something the query language actually accepts. |
+| 4 | Each `ConsoleAction` gained a canonical lowercase `invoke` phrase (e.g. `"goto kanban"`, `"reset"`, `"open project <name>"`) used only for completion, separate from the fuzzy `keywords` used for filtering the results list. | The results list intentionally matches loosely (any word, any order); completion needs one canonical, deterministic string to complete *to*. |
+| 5 | Rendered as classic shell-style inline ghost text — an `aria-hidden` overlay behind the input showing the typed text invisibly plus the suggested remainder in muted color — rather than a separate suggestions dropdown. | Reuses the single input the console already has; doesn't compete visually with the existing results list below it. |
+| 6 | `Tab` and `ArrowRight` both accept the suggestion (only when the cursor is at the end of the input); accepting never submits the query. | Matches fish/zsh autosuggestion conventions; not auto-running on accept keeps `> reset`-style completions safe. |
+
 ## 2026-08-08 — Hover cards, weekly tick-off, all-containers view, entity pickers
 
 | # | Decision | Rationale |

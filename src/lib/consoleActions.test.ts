@@ -35,6 +35,17 @@ describe('buildConsoleActions', () => {
     const actions = buildConsoleActions(makeCtx());
     const projectAction = actions.find((a) => a.id === 'open-project-p1');
     expect(projectAction?.title).toBe('Open project: Website Redesign');
+    expect(projectAction?.invoke).toBe('open project website redesign');
+  });
+
+  it('gives every action a lowercase invoke phrase for Tab-completion', () => {
+    const actions = buildConsoleActions(makeCtx());
+    for (const action of actions) {
+      expect(action.invoke).toBe(action.invoke.toLowerCase());
+      expect(action.invoke.length).toBeGreaterThan(0);
+    }
+    expect(actions.find((a) => a.id === 'goto-kanban')?.invoke).toBe('goto kanban');
+    expect(actions.find((a) => a.id === 'reset-all')?.invoke).toBe('reset');
   });
 
   it('running the reset-all action calls resetAll', async () => {

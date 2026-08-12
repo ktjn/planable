@@ -18,6 +18,7 @@ import { listLabels } from '../../db/repositories/labels';
 import { parseConsoleQuery } from '../../lib/consoleQuery';
 import { searchItems, type ConsoleItemResult } from '../../lib/consoleSearch';
 import { buildConsoleActions, searchActions, type ConsoleAction } from '../../lib/consoleActions';
+import { suggestCompletion } from '../../lib/consoleAutocomplete';
 import { addSampleData } from '../../lib/sampleData';
 import { resetAllData } from '../../lib/resetAllData';
 import { useTheme } from '../../lib/use-theme';
@@ -49,6 +50,7 @@ export function ConsolePanel({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [cursorAtEnd, setCursorAtEnd] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toggle: toggleTheme } = useTheme();
 
@@ -102,6 +104,18 @@ export function ConsolePanel({
     setSelectedIndex(0);
   }, [results.length, query]);
 
+  const ghostSuggestion = useMemo(
+    () =>
+      suggestCompletion(query, {
+        labels: labels ?? [],
+        projects: projects ?? [],
+        actions,
+      }),
+    [query, labels, projects, actions],
+  );
+  const ghostSuffix =
+    cursorAtEnd && ghostSuggestion && ghostSuggestion.startsWith(query) ? ghostSuggestion.slice(query.length) : '';
+
   useEffect(() => {
     function onKeyDown(e: globalThis.KeyboardEvent) {
       const ctrlPressed = e.ctrlKey || e.metaKey;
@@ -122,6 +136,20 @@ export function ConsolePanel({
     setOpen(false);
   }
 
+  function updateCursorAtEnd(el: HTMLInputElement) {
+    setCursorAtEnd(el.selectionStart === el.value.length && el.selectionEnd === el.value.length);
+  }
+
+  function acceptGhostSuggestion() {
+    if (!ghostSuffix) return false;
+    const completed = query + ghostSuffix;
+    setQuery(completed);
+    requestAnimationFrame(() => {
+      inputRef.current?.setSelectionRange(completed.length, completed.length);
+    });
+    return true;
+  }
+
   function handleExpand() {
     setOpen(true);
     requestAnimationFrame(() => inputRef.current?.focus());
@@ -137,7 +165,13 @@ export function ConsolePanel({
   }
 
   function handleInputKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'ArrowDown') {
+    if (e.key === 'Tab' && ghostSuffix) {
+      e.preventDefault();
+      acceptGhostSuggestion();
+    } else if (e.key === 'ArrowRight' && ghostSuffix) {
+      e.preventDefault();
+      acceptGhostSuggestion();
+    } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelectedIndex((i) => (results.length === 0 ? 0 : (i + 1) % results.length));
     } else if (e.key === 'ArrowUp') {
@@ -158,15 +192,30 @@ export function ConsolePanel({
       <div className="mx-auto flex w-full max-w-[1440px] items-center gap-2 px-4 py-2 md:px-6">
         <SquareTerminal className="size-4 shrink-0 text-muted-foreground" />
         {open ? (
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleInputKeyDown}
-            placeholder='Query items (e.g. task label:bug day:mon) or run "> " actions…'
-            aria-label="Console query"
-            className="h-7 min-w-0 flex-1 bg-transparent font-mono text-sm outline-none placeholder:text-muted-foreground"
-          />
+          <div className="relative min-w-0 flex-1">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 flex items-center overflow-hidden font-mono text-sm whitespace-pre"
+            >
+              <span className="invisible">{query}</span>
+              <span className="text-muted-foreground/60">{ghostSuffix}</span>
+            </div>
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                updateCursorAtEnd(e.target);
+              }}
+              onKeyDown={handleInputKeyDown}
+              onClick={(e) => updateCursorAtEnd(e.currentTarget)}
+              onKeyUp={(e) => updateCursorAtEnd(e.currentTarget)}
+              onSelect={(e) => updateCursorAtEnd(e.currentTarget)}
+              placeholder='Query items (e.g. task label:bug day:mon) or run "> " actions…'
+              aria-label="Console query"
+              className="relative h-7 w-full bg-transparent font-mono text-sm outline-none placeholder:text-muted-foreground"
+            />
+          </div>
         ) : (
           <button
             type="button"
@@ -216,6 +265,10 @@ export function ConsolePanel({
             <code className="rounded bg-muted px-1">-</code>
             <span>· actions start with</span>
             <code className="rounded bg-muted px-1">&gt;</code>
+            <span>
+              · <kbd className="rounded border border-border bg-muted px-1 py-0.5 text-[10px]">Tab</kbd> to
+              autocomplete
+            </span>
           </p>
           <ul
             role="listbox"

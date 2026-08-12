@@ -12,6 +12,7 @@ import { db } from '../../db/db';
 import { createProject } from '../../db/repositories/projects';
 import { createContainer } from '../../db/repositories/containers';
 import { createTask } from '../../db/repositories/tasks';
+import { createLabel } from '../../db/repositories/labels';
 import { INBOX_PROJECT_ID } from '../../db/inbox';
 
 describe('ConsolePanel', () => {
@@ -91,6 +92,56 @@ describe('ConsolePanel', () => {
 
     expect(confirmSpy).toHaveBeenCalled();
     expect(await db.projects.count()).toBeGreaterThan(1);
+  });
+
+  it('Tab-completes a partial field name', async () => {
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    const input = screen.getByLabelText('Console query') as HTMLInputElement;
+
+    await userEvent.type(input, 'l');
+    await userEvent.keyboard('{Tab}');
+
+    expect(input).toHaveValue('label:');
+  });
+
+  it('Tab-completes a label value from live data', async () => {
+    const project = await createProject('Website');
+    const container = await createContainer(project.id, 'Frontend');
+    await createTask({ title: 'Task', projectId: project.id, containerId: container.id, labels: [] });
+    await createLabel('Bug', '#ef4444');
+
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    const input = screen.getByLabelText('Console query') as HTMLInputElement;
+
+    await userEvent.type(input, 'label:b');
+    await waitFor(() => expect(input).toHaveValue('label:b'));
+    await userEvent.keyboard('{Tab}');
+
+    expect(input).toHaveValue('label:bug ');
+  });
+
+  it('ArrowRight also accepts the current suggestion', async () => {
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    const input = screen.getByLabelText('Console query') as HTMLInputElement;
+
+    await userEvent.type(input, 'con');
+    await userEvent.keyboard('{ArrowRight}');
+
+    expect(input).toHaveValue('container ');
+  });
+
+  it('Tab-completes an action invocation after >', async () => {
+    render(<ConsolePanel onNavigate={vi.fn()} />);
+    await userEvent.click(screen.getByText(/press/i));
+    const input = screen.getByLabelText('Console query') as HTMLInputElement;
+
+    await userEvent.type(input, '> goto k');
+    await userEvent.keyboard('{Tab}');
+
+    expect(input).toHaveValue('> goto kanban ');
   });
 
   it('toggles open and closed with Ctrl+K', async () => {
