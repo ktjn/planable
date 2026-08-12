@@ -89,7 +89,7 @@ export function TaskCard({
             />
           )}
           <div
-            className={`min-w-16 flex-1 cursor-default truncate text-left text-sm transition-[color,text-decoration-thickness] duration-300 ease-out motion-reduce:transition-none ${
+            className={`min-w-16 flex-1 cursor-default text-left text-sm leading-snug line-clamp-2 transition-[color,text-decoration-thickness] duration-300 ease-out motion-reduce:transition-none ${
               task.completed ? 'text-muted-foreground line-through' : 'text-foreground'
             }`}
           >
