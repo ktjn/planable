@@ -167,7 +167,7 @@ function StatusColumn({ status }: { status: KanbanStatus }) {
     <section
       ref={setNodeRef}
       data-dnd-droppable
-      className="flex w-60 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm"
+      className="flex w-64 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm"
     >
       <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2.5">
         <div className="flex items-center gap-1.5">
