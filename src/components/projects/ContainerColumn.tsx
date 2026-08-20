@@ -41,7 +41,7 @@ export function ContainerColumn({
         transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
         transition: isDragging ? 'none' : undefined,
       }}
-      className={`flex w-64 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm ${
+      className={`flex w-72 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm ${
         isDragging ? 'opacity-50' : 'hover:shadow-md'
       }`}
     >
