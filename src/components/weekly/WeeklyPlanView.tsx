@@ -76,7 +76,7 @@ function WeeklyDayColumn({
     <section
       ref={setNodeRef}
       data-dnd-droppable
-      className="flex w-52 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm"
+      className="flex w-56 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm"
     >
       <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2.5">
         <div className="flex items-center gap-1.5">
@@ -264,7 +264,7 @@ export function WeeklyPlanView() {
         </section>
         <DragOverlay adjustScale={false} dropAnimation={null}>
           {activeTask ? (
-            <div className="w-52 pointer-events-none">
+            <div className="w-56 pointer-events-none">
               <TaskCard
                 task={activeTask}
                 labelsById={labelsById}
