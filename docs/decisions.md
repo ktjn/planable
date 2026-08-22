@@ -106,6 +106,13 @@ Link: `docs/superpowers/specs/2026-08-08-download-app-design.md`.
 | 1 | Use short transitions on the shared task card and checkbox when completion changes. | TaskCard is used across projects, weekly planning, kanban and search, so the interaction should feel consistent everywhere. |
 | 2 | Keep the completion reorder immediate and respect `prefers-reduced-motion`. | The existing local-first feedback remains instant while motion stays optional and accessible. |
 
+## 2026-08-22 — Navigation and view-transition polish
+
+| # | Decision | Rationale |
+|---|----------|-----------|
+| 1 | Keep the primary navigation on one horizontally scrollable rail instead of wrapping it into multiple header rows. | Project tabs are user-created and can grow without bound; a stable header preserves context and keeps the active view discoverable on narrow screens. |
+| 2 | Add a short entrance transition to the active view and restrained hover lift to weekly columns and quick-add controls, with reduced-motion fallbacks. | Navigation should feel continuous without delaying data feedback or adding motion to every element. |
+
 ## 2026-08-12 — Console query history, OR/parens, bulk delete, and auto-reload
 
 | # | Decision | Rationale |

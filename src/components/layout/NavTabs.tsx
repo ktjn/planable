@@ -93,14 +93,15 @@ export function NavTabs({
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
-      <div className="flex min-h-12 flex-wrap items-center gap-1 px-3 py-1.5 sm:px-4">
-        <div className="mr-1 flex items-center gap-2 pr-1">
+      <div className="flex min-h-12 items-center gap-1 px-3 py-1.5 sm:px-4">
+        <div className="mr-1 flex shrink-0 items-center gap-2 pr-1">
           <div className="grid size-7 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground shadow-sm">
             <CalendarRange className="size-4" />
           </div>
           <span className="hidden text-sm font-semibold tracking-tight sm:inline">Planable</span>
         </div>
         <Separator orientation="vertical" className="mr-1 h-5" />
+        <nav aria-label="Primary navigation" className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto py-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {([
           ['weekly', 'Weekly Plan', CalendarDays] as const,
           ['kanban', 'Kanban', KanbanSquare] as const,
@@ -180,6 +181,7 @@ export function NavTabs({
             <Plus />
           </Button>
         )}
+        </nav>
         <div className="ml-auto flex items-center">
           <Button
             variant="ghost"
