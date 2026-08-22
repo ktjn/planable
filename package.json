@@ -1,8 +1,27 @@
 {
   "name": "planable",
-  "private": true,
   "version": "0.1.0",
+  "description": "A local-first work planning application for engineers and architects",
+  "license": "MIT",
   "type": "module",
+  "homepage": "https://ktjn.github.io/planable/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ktjn/planable.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ktjn/planable/issues"
+  },
+  "keywords": [
+    "local-first",
+    "planner",
+    "kanban",
+    "weekly-planner",
+    "productivity",
+    "indexeddb",
+    "single-file",
+    "offline-first"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

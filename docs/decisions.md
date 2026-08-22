@@ -4,6 +4,15 @@ Record notable design and product decisions here. Each entry should state the
 decision, the date, and the rationale so future work does not re-litigate them
 unnecessarily.
 
+## 2026-08-22 — Open source release, standalone HTML distribution, and repository preparation
+
+| # | Decision | Rationale |
+|---|----------|-----------|
+| 1 | Open source under the MIT License (`LICENSE`) with updated `package.json` metadata (homepage, repository, bugs, keywords). | Standard permissive open-source license that allows unrestricted personal and commercial use while keeping attributions clear. |
+| 2 | Add GitHub Actions release workflow (`.github/workflows/release.yml`) producing and attaching a standalone `planable.html` asset to tagged releases (`v*`). | Enables one-click offline downloads from GitHub Releases without requiring users or contributors to run local build tools or web servers. |
+| 3 | Update `README.md` with links to the live GitHub Pages deployment (`https://ktjn.github.io/planable/`), release downloads, full tech stack, run options, development instructions, and an open-source props/acknowledgments section. | Provides a complete, welcoming onboarding experience for open-source users and contributors, highlighting offline-first capabilities and key dependencies. |
+| 4 | Clean repository and update `.gitignore` to ignore transient runner/tooling artifacts (`.claude/`, `.playwright-cli/`, `output/`). | Prevents local test screenshots and assistant metadata from polluting the repository. |
+
 ## 2026-08-12 — SQL-like console statements and sandbox transactions
 
 | # | Decision | Rationale |
