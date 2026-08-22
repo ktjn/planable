@@ -43,13 +43,13 @@ export function SortedTaskList({
   );
 
   const open = useMemo(
-    () => (tasks ?? []).filter((t) => !t.completed).sort(byOrder),
+    () => (tasks ?? []).filter((t) => !t.archived && !t.completed).sort(byOrder),
     [tasks],
   );
   const done = useMemo(
     () =>
       (tasks ?? [])
-        .filter((t) => t.completed)
+        .filter((t) => !t.archived && t.completed)
         .sort((a, b) => (b.completedDate ?? 0) - (a.completedDate ?? 0)),
     [tasks],
   );

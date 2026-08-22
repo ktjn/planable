@@ -11,7 +11,7 @@ vi.mock('../../db/db', async () => {
 import { AllTasksView } from './AllTasksView';
 import { createProject } from '../../db/repositories/projects';
 import { createContainer } from '../../db/repositories/containers';
-import { createTask } from '../../db/repositories/tasks';
+import { createTask, setTaskCompleted, setTaskArchived } from '../../db/repositories/tasks';
 import { INBOX_PROJECT_ID, INBOX_CONTAINER_ID } from '../../db/inbox';
 
 describe('AllTasksView', () => {
@@ -34,6 +34,55 @@ describe('AllTasksView', () => {
     expect(await screen.findByText('Alpha task')).toBeInTheDocument();
     expect(screen.getByText('Inbox task')).toBeInTheDocument();
     expect(screen.getByText('Alpha')).toBeInTheDocument();
+  });
+
+  it('sinks completed tasks to the bottom', async () => {
+    const project = await createProject('Beta');
+    const container = await createContainer(project.id, 'BetaContainer');
+    const openTask = await createTask({
+      title: 'Open Task Z',
+      projectId: project.id,
+      containerId: container.id,
+    });
+    const doneTask = await createTask({
+      title: 'Done Task A',
+      projectId: project.id,
+      containerId: container.id,
+    });
+    await setTaskCompleted(doneTask.id, true);
+
+    render(<AllTasksView />);
+
+    await screen.findByText('Open Task Z');
+    const taskElements = screen.getAllByText(/^(Open Task Z|Done Task A)$/);
+    expect(taskElements[0]).toHaveTextContent('Open Task Z');
+    expect(taskElements[1]).toHaveTextContent('Done Task A');
+  });
+
+  it('hides archived tasks by default and shows them when show archived is checked', async () => {
+    const project = await createProject('Gamma');
+    const container = await createContainer(project.id, 'GammaContainer');
+    const activeTask = await createTask({
+      title: 'Active Gamma',
+      projectId: project.id,
+      containerId: container.id,
+    });
+    const archivedTask = await createTask({
+      title: 'Archived Gamma',
+      projectId: project.id,
+      containerId: container.id,
+    });
+    await setTaskArchived(archivedTask.id, true);
+
+    render(<AllTasksView />);
+
+    expect(await screen.findByText('Active Gamma')).toBeInTheDocument();
+    expect(screen.queryByText('Archived Gamma')).not.toBeInTheDocument();
+
+    const checkbox = screen.getByLabelText('Show archived tasks');
+    await userEvent.click(checkbox);
+
+    expect(await screen.findByText('Archived Gamma')).toBeInTheDocument();
   });
 
   it('toggles a task completed via its checkbox', async () => {
