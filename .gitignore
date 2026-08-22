@@ -4,7 +4,15 @@ dist/
 *.local
 *.tsbuildinfo
 
-# Playwright
+# Playwright & test output
 test-results/
 playwright-report/
 blob-report/
+.playwright-cli/
+output/
+
+# Editor & AI assistant directories
+.claude/
+.idea/
+.vscode/
+*.log
