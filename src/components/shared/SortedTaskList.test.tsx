@@ -7,7 +7,7 @@ vi.mock('../../db/db', async () => {
 });
 
 import { SortedTaskList } from './SortedTaskList';
-import { createTask, setTaskCompleted } from '../../db/repositories/tasks';
+import { createTask, setTaskCompleted, setTaskArchived } from '../../db/repositories/tasks';
 import { INBOX_PROJECT_ID, INBOX_CONTAINER_ID } from '../../db/inbox';
 
 describe('SortedTaskList', () => {
@@ -22,5 +22,24 @@ describe('SortedTaskList', () => {
     const items = within(list).getAllByText(/^(Open A|Done B)$/);
     expect(items[0]).toHaveTextContent('Open A');
     expect(items[1]).toHaveTextContent('Done B');
+  });
+
+  it('hides archived tasks from the container task list', async () => {
+    const visibleTask = await createTask({
+      title: 'Visible Task',
+      projectId: INBOX_PROJECT_ID,
+      containerId: INBOX_CONTAINER_ID,
+    });
+    const archivedTask = await createTask({
+      title: 'Archived Task Hidden',
+      projectId: INBOX_PROJECT_ID,
+      containerId: INBOX_CONTAINER_ID,
+    });
+    await setTaskArchived(archivedTask.id, true);
+
+    render(<SortedTaskList containerId={INBOX_CONTAINER_ID} labelsById={new Map()} />);
+
+    expect(await screen.findByText('Visible Task')).toBeInTheDocument();
+    expect(screen.queryByText('Archived Task Hidden')).not.toBeInTheDocument();
   });
 });

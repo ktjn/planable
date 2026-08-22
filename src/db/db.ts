@@ -63,6 +63,26 @@ export class PlanableDB extends Dexie {
       weekTemplates: 'id, projectId, taskId',
       settings: '&key',
     });
+    // v6: ensures archived defaults to false for all tasks and containers.
+    this.version(6).stores({
+      projects: 'id, order',
+      containers: 'id, projectId, order, weekly.weekId',
+      tasks: 'id, projectId, containerId, weekly.weekId',
+      labels: 'id, name',
+      weekTemplates: 'id, projectId, taskId',
+      settings: '&key',
+    }).upgrade(async (tx) => {
+      await tx.table('tasks').toCollection().modify((task) => {
+        if (task.archived === undefined) {
+          task.archived = false;
+        }
+      });
+      await tx.table('containers').toCollection().modify((container) => {
+        if (container.archived === undefined) {
+          container.archived = false;
+        }
+      });
+    });
     this.on('populate', () => {
       this.projects.add(INBOX_PROJECT);
       this.containers.add(INBOX_CONTAINER);

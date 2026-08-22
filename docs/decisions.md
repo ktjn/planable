@@ -113,6 +113,15 @@ Link: `docs/superpowers/specs/2026-08-08-download-app-design.md`.
 | 1 | Keep the primary navigation on one horizontally scrollable rail instead of wrapping it into multiple header rows. | Project tabs are user-created and can grow without bound; a stable header preserves context and keeps the active view discoverable on narrow screens. |
 | 2 | Add a short entrance transition to the active view and restrained hover lift to weekly columns and quick-add controls, with reduced-motion fallbacks. | Navigation should feel continuous without delaying data feedback or adding motion to every element. |
 
+## 2026-08-22 — Weekly plan responsive fit, completed tasks sunk to bottom, and archived state toggles
+
+| # | Decision | Rationale |
+|---|----------|-----------|
+| 1 | `WeeklyDayColumn` sizing changed from fixed `w-56 shrink-0` to responsive `min-w-44 flex-1 shrink-0` with `gap-3`. | A fixed 224px width across 6 columns caused horizontal overflow on standard 1080p/1440p desktop viewports even when the container width was sufficient. Responsive column flex allows columns to evenly fit standard screen widths without horizontal scroll while gracefully retaining scrollability on narrow screens. |
+| 2 | `AllTasksView` sorts open tasks first by title, and sinks completed tasks to the bottom ordered by completion date descending (then title), matching `SortedTaskList` and `WeeklyPlanView`. | Consistency across all task views ensures completed work is cleanly separated and pinned to the bottom everywhere tasks are displayed. |
+| 3 | Archived entities (tasks and containers) are hidden by default across container lists and task views (`SortedTaskList`, `AllTasksView`, `AllContainersView`), with separate "Show archived" checkboxes in the All Tasks and All Containers headers to optionally reveal them with visual badges. | Keeps active views focused on relevant work while providing quick, explicit toggles to browse and inspect archived tasks and containers. |
+| 4 | Added Archive / Unarchive action buttons to `TaskDialog` in edit mode (matching `ContainerDialog`) and bumped Dexie schema to version 6 with a migration defaulting `archived: false`. | Allows users to toggle archive state directly from task editing modal, and adheres to Dexie version bump rules for schema updates. |
+
 ## 2026-08-12 — Console query history, OR/parens, bulk delete, and auto-reload
 
 | # | Decision | Rationale |

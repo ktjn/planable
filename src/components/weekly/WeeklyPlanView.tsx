@@ -76,7 +76,7 @@ function WeeklyDayColumn({
     <section
       ref={setNodeRef}
       data-dnd-droppable
-      className="group/column flex w-56 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm transition-[border-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none"
+      className="group/column flex min-w-44 flex-1 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm transition-[border-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none"
     >
       <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2.5">
         <div className="flex items-center gap-1.5">
@@ -247,7 +247,7 @@ export function WeeklyPlanView() {
       >
         <section className="flex flex-col gap-2">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Tasks</h3>
-          <div className="flex gap-4 overflow-x-auto pb-2">
+          <div className="flex gap-3 overflow-x-auto pb-2">
             {COLUMNS.map((day) => (
               <WeeklyDayColumn
                 key={day}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { createTask, updateTask, deleteTask } from '../../db/repositories/tasks';
+import { createTask, updateTask, deleteTask, setTaskArchived } from '../../db/repositories/tasks';
 import { listLabels } from '../../db/repositories/labels';
 import { setTaskRepeatWeekly } from '../../db/repositories/taskMembership';
 import type { Task } from '../../db/schema';
@@ -117,18 +117,45 @@ export function TaskDialog({
         </div>
 
         <DialogFooter>
-          {mode === 'edit' && task && (
-            <Button
-              variant="ghost"
-              className="mr-auto text-destructive hover:text-destructive"
-              onClick={async () => {
-                await deleteTask(task.id);
-                onClose();
-              }}
-            >
-              Delete
-            </Button>
-          )}
+          <div className="mr-auto flex items-center gap-2">
+            {mode === 'edit' && task && (
+              <>
+                {!task.archived ? (
+                  <Button
+                    variant="outline"
+                    className="text-muted-foreground"
+                    onClick={async () => {
+                      await setTaskArchived(task.id, true);
+                      onClose();
+                    }}
+                  >
+                    Archive
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="text-muted-foreground"
+                    onClick={async () => {
+                      await setTaskArchived(task.id, false);
+                      onClose();
+                    }}
+                  >
+                    Unarchive
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive"
+                  onClick={async () => {
+                    await deleteTask(task.id);
+                    onClose();
+                  }}
+                >
+                  Delete
+                </Button>
+              </>
+            )}
+          </div>
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>

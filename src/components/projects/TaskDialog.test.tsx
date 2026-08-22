@@ -70,4 +70,47 @@ describe('TaskDialog', () => {
     const updated = await db.tasks.get(task.id);
     expect(updated?.weekly?.repeatWeekly).toBe(true);
   });
+
+  it('archives and unarchives a task from edit mode', async () => {
+    const { createTask, setTaskArchived } = await import('../../db/repositories/tasks');
+    const task = await createTask({
+      title: 'Task to Archive',
+      projectId: INBOX_PROJECT_ID,
+      containerId: INBOX_CONTAINER_ID,
+    });
+
+    const onClose = vi.fn();
+    const { rerender } = render(
+      <TaskDialog
+        mode="edit"
+        projectId={INBOX_PROJECT_ID}
+        containerId={INBOX_CONTAINER_ID}
+        task={task}
+        onClose={onClose}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /^archive$/i }));
+    await waitFor(async () => {
+      const stored = await db.tasks.get(task.id);
+      expect(stored?.archived).toBe(true);
+    });
+
+    const archivedTask = (await db.tasks.get(task.id))!;
+    rerender(
+      <TaskDialog
+        mode="edit"
+        projectId={INBOX_PROJECT_ID}
+        containerId={INBOX_CONTAINER_ID}
+        task={archivedTask}
+        onClose={onClose}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /^unarchive$/i }));
+    await waitFor(async () => {
+      const stored = await db.tasks.get(task.id);
+      expect(stored?.archived).toBe(false);
+    });
+  });
 });

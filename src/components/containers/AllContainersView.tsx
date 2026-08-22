@@ -8,6 +8,7 @@ import { isContainerVisible } from '../../lib/entityVisibility';
 import { useScrollHighlight, type HighlightRequest } from '../../lib/useScrollHighlight';
 import type { Container, Label, Project } from '../../db/schema';
 import { Badge } from '../ui/badge';
+import { Checkbox } from '../ui/checkbox';
 import { EntityLabels } from '../shared/EntityLabels';
 import { QuickAddRow } from '../shared/QuickAddRow';
 import { SortedTaskList } from '../shared/SortedTaskList';
@@ -15,12 +16,9 @@ import { ContainerDialog } from '../projects/ContainerDialog';
 import { EntityHoverCard, ContainerHoverCardContent } from '../shared/EntityHoverCard';
 
 export function AllContainersView({ highlight }: { highlight?: HighlightRequest | null }) {
+  const [showArchived, setShowArchived] = useState(false);
   const highlighted = useScrollHighlight(highlight);
-  const containers = useLiveQuery(
-    () => db.containers.toArray().then((arr) => arr.filter(isContainerVisible)),
-    [],
-    [],
-  );
+  const allContainers = useLiveQuery(() => db.containers.toArray(), [], []);
   const projects = useLiveQuery(() => db.projects.toArray(), [], []);
   const labels = useLiveQuery(listLabels, [], []);
   const allTasks = useLiveQuery(() => db.tasks.toArray(), [], []);
@@ -35,13 +33,20 @@ export function AllContainersView({ highlight }: { highlight?: HighlightRequest 
     return map;
   }, [allTasks]);
   const containerById = useMemo(
-    () => new Map((containers ?? []).map((c) => [c.id, c])),
-    [containers],
+    () => new Map((allContainers ?? []).map((c) => [c.id, c])),
+    [allContainers],
   );
+
+  const filteredContainers = useMemo(() => {
+    return (allContainers ?? []).filter((c) => {
+      if (showArchived) return true;
+      return isContainerVisible(c);
+    });
+  }, [allContainers, showArchived]);
 
   const sorted = useMemo(
     () =>
-      [...(containers ?? [])].sort((a, b) => {
+      [...filteredContainers].sort((a, b) => {
         const pa = projectById.get(a.projectId)?.order ?? Number.MAX_SAFE_INTEGER;
         const pb = projectById.get(b.projectId)?.order ?? Number.MAX_SAFE_INTEGER;
         if (pa !== pb) return pa - pb;
@@ -51,19 +56,29 @@ export function AllContainersView({ highlight }: { highlight?: HighlightRequest 
         if (a.order !== b.order) return a.order - b.order;
         return a.name.localeCompare(b.name);
       }),
-    [containers, projectById],
+    [filteredContainers, projectById],
   );
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-          <Layers className="size-4" />
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+            <Layers className="size-4" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">All Containers</h2>
+            <p className="text-sm text-muted-foreground">Every container across every project</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight">All Containers</h2>
-          <p className="text-sm text-muted-foreground">Every container across every project</p>
-        </div>
+        <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
+          <Checkbox
+            checked={showArchived}
+            onCheckedChange={(checked) => setShowArchived(Boolean(checked))}
+            aria-label="Show archived containers"
+          />
+          <span>Show archived</span>
+        </label>
       </div>
       <ul className="flex flex-col gap-1.5">
         {sorted.map((container) => (
@@ -143,6 +158,9 @@ function ContainerRow({
               <span className="block truncate text-sm font-medium text-foreground">{container.name}</span>
               <span className="mt-0.5 flex items-center gap-2">
                 {children}
+                {container.archived && (
+                  <Badge variant="outline">Archived</Badge>
+                )}
                 {container.kanban && (
                   <Badge variant="secondary">Kanban: {container.kanban.status}</Badge>
                 )}
