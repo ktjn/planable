@@ -130,12 +130,14 @@
 }
 
 @keyframes view-enter {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .view-enter {
-  animation: view-enter 180ms ease-out both;
+  /* Keep this opacity-only: dnd-kit DragOverlay uses viewport-fixed positioning,
+     and transformed ancestors change its frame. */
+  animation: view-enter 180ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
