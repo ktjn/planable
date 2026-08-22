@@ -76,7 +76,7 @@ function WeeklyDayColumn({
     <section
       ref={setNodeRef}
       data-dnd-droppable
-      className="flex w-56 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm"
+      className="group/column flex w-56 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm transition-[border-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none"
     >
       <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2.5">
         <div className="flex items-center gap-1.5">
@@ -90,7 +90,7 @@ function WeeklyDayColumn({
         </span>
       </div>
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-        <ul className="flex flex-col gap-1.5 p-2">
+        <ul className="flex min-h-14 flex-col gap-1.5 p-2 transition-[min-height] duration-200 motion-reduce:transition-none">
           {sorted.map((task) => (
             <li key={task.id}>
               <TaskCard

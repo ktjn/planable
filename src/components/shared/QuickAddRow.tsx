@@ -26,7 +26,7 @@ export function QuickAddRow({
     return (
       <Button
         variant="ghost"
-        className="w-full justify-start rounded-md border border-dashed border-border/70 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+        className="w-full justify-start rounded-md border border-dashed border-border/70 text-muted-foreground transition-[border-color,background-color,color,transform] duration-200 hover:-translate-y-px hover:border-primary/40 hover:bg-primary/[0.03] hover:text-foreground motion-reduce:transform-none motion-reduce:transition-none"
         size="sm"
         onClick={() => setOpen(true)}
       >

@@ -128,3 +128,16 @@
     @apply font-sans;
     }
 }
+
+@keyframes view-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.view-enter {
+  animation: view-enter 180ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view-enter { animation: none; }
+}

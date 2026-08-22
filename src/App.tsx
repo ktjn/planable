@@ -74,14 +74,16 @@ export default function App() {
     <div className="flex min-h-dvh flex-col">
       <NavTabs active={active} onSelect={setActive} />
       <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 pb-14 md:px-6">
-        {active.kind === 'weekly' && <WeeklyPlanView />}
-        {active.kind === 'kanban' && <KanbanView />}
-        {active.kind === 'all-tasks' && <AllTasksView highlight={highlight} />}
-        {active.kind === 'all-containers' && <AllContainersView highlight={highlight} />}
-        {active.kind === 'labels' && <LabelManager highlight={highlight} />}
-        {active.kind === 'search' && <SearchView onOpenTask={openTaskInProject} />}
-        {active.kind === 'settings' && <Settings />}
-        {active.kind === 'project' && <ProjectView projectId={active.projectId} />}
+        <div key={active.kind === 'project' ? `${active.kind}-${active.projectId}` : active.kind} className="view-enter">
+          {active.kind === 'weekly' && <WeeklyPlanView />}
+          {active.kind === 'kanban' && <KanbanView />}
+          {active.kind === 'all-tasks' && <AllTasksView highlight={highlight} />}
+          {active.kind === 'all-containers' && <AllContainersView highlight={highlight} />}
+          {active.kind === 'labels' && <LabelManager highlight={highlight} />}
+          {active.kind === 'search' && <SearchView onOpenTask={openTaskInProject} />}
+          {active.kind === 'settings' && <Settings />}
+          {active.kind === 'project' && <ProjectView projectId={active.projectId} />}
+        </div>
       </main>
       <ConsolePanel onNavigate={handleConsoleNavigate} />
     </div>
