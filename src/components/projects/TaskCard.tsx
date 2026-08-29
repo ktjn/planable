@@ -79,7 +79,7 @@ export function TaskCard({
             isDragging ? 'opacity-40' : ''
           } ${highlighted ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''} ${className ?? ''}`}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-start gap-2">
             {showCheckbox && (
               <Checkbox
                 checked={task.completed}
@@ -87,20 +87,24 @@ export function TaskCard({
                 onCheckedChange={(checked) => fireAndForget(setTaskCompleted(task.id, checked))}
                 onClick={(e) => e.stopPropagation()}
                 onDoubleClick={(e) => e.stopPropagation()}
+                className="mt-0.5"
               />
             )}
             <div
-              className={`min-w-16 flex-1 cursor-default text-left text-sm leading-snug line-clamp-2 transition-[color,text-decoration-thickness] duration-300 ease-out motion-reduce:transition-none ${
+              className={`min-w-16 flex-1 cursor-default text-left text-sm leading-snug line-clamp-3 transition-[color,text-decoration-thickness] duration-300 ease-out motion-reduce:transition-none ${
                 task.completed ? 'text-muted-foreground line-through' : 'text-foreground'
               }`}
             >
               {task.title}
             </div>
-            <span className="flex shrink-0 items-center gap-0.5">
+          </div>
+          {(showAddToWeek || sortableId !== null) && (
+            <div className="flex items-center justify-end gap-0.5">
               {showAddToWeek && !task.weekly && (
                 <button
                   className="rounded px-1.5 py-1 text-xs text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-muted hover:text-foreground"
                   title="Add to this week"
+                  aria-label={`Add ${task.title} to this week`}
                   onClick={(e) => {
                     e.stopPropagation();
                     fireAndForget(addToWeek(task.id));
@@ -114,7 +118,7 @@ export function TaskCard({
                 <button
                   ref={setActivatorNodeRef}
                   aria-label={`Drag ${task.title}`}
-                  className="shrink-0 cursor-grab touch-none text-muted-foreground/60 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:text-muted-foreground active:cursor-grabbing"
+                  className="shrink-0 cursor-grab touch-none rounded px-1 py-1 text-muted-foreground/60 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:text-muted-foreground active:cursor-grabbing"
                   {...listeners}
                   {...attributes}
                   onClick={(e) => e.stopPropagation()}
@@ -123,8 +127,8 @@ export function TaskCard({
                   <GripVertical className="h-4 w-4" />
                 </button>
               )}
-            </span>
-          </div>
+            </div>
+          )}
           {(task.labels.length > 0 || extra || (showWeeklyBadge && task.weekly)) && (
             <div className="flex flex-wrap items-center gap-1.5">
               <EntityLabels labelIds={task.labels} labelsById={labelsById} />
