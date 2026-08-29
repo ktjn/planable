@@ -4,6 +4,14 @@ Record notable design and product decisions here. Each entry should state the
 decision, the date, and the rationale so future work does not re-litigate them
 unnecessarily.
 
+## 2026-08-29 — Split Pages workflow into CI + Deploy workflows
+
+| # | Decision | Rationale |
+|---|----------|-----------|
+| 1 | Replace the single `deploy.yml` (which ran build + e2e on both pushes and PRs, and deployed only on non-PR events) with two workflows: `ci.yml` (`pull_request` + manual dispatch; build + e2e, no Pages permissions) and `deploy.yml` (`push` to `main` + manual dispatch; build + test + upload artifact + e2e + deploy). | Separates the concerns cleanly: PRs can never touch the Pages workflow (no more `if: github.event_name != 'pull_request'` guards needed), while the Deploy workflow stays fully self-contained — a push to main only deploys if its own build and e2e jobs pass in the same run, so the deploy gate does not depend on branch-protection settings. |
+| 2 | Keep the `notify-deploy-failure` / `resolve-deploy-issue` jobs in `deploy.yml`, with their `github.event_name != 'pull_request'` conditions removed (PRs can no longer trigger this workflow). | Preserves the "silent stale site" protection: a failing build/e2e on main still skips `deploy` and files/updates a tracking issue, which auto-resolves on the next successful deploy. |
+| 3 | Scope both workflows' concurrency groups per ref (`ci-${{ github.ref }}` / `pages-${{ github.ref }}`) with `cancel-in-progress: true`. | A shared group let pushes on one branch cancel in-progress runs of other branches (observed with dependabot PRs, whose checks stayed CANCELLED and left the PR status UNSTABLE). Per-ref groups keep "new push supersedes old run" behavior without cross-branch interference. |
+
 ## 2026-08-22 — Open source release, standalone HTML distribution, and repository preparation
 
 | # | Decision | Rationale |
