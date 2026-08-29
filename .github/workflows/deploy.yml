@@ -12,8 +12,12 @@ permissions:
   pages: write
   id-token: write
 
+# Scope the concurrency group per ref so a push on one branch only cancels
+# in-progress runs of *that same* branch. A single shared group cancelled
+# runs from other branches (e.g. dependabot PRs), leaving their checks
+# perpetually CANCELLED and the PR status UNSTABLE.
 concurrency:
-  group: 'pages'
+  group: 'pages-${{ github.ref }}'
   cancel-in-progress: true
 
 jobs:
