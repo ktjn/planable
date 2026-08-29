@@ -16,6 +16,7 @@ const task: Task = {
   projectId: 'p1',
   containerId: 'c1',
   order: 0,
+  globalOrder: 0,
   completed: false,
   completedDate: null,
   archived: false,

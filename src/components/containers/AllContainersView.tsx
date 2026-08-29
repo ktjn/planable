@@ -1,11 +1,22 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState } from 'react';
-import { Layers, ChevronRight, ChevronDown } from 'lucide-react';
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
+import { Layers, ChevronRight, ChevronDown, GripVertical } from 'lucide-react';
 import { db } from '../../db/db';
 import { listLabels } from '../../db/repositories/labels';
 import { createTask } from '../../db/repositories/tasks';
+import { reorderContainers } from '../../db/repositories/containers';
 import { isContainerVisible } from '../../lib/entityVisibility';
 import { useScrollHighlight, type HighlightRequest } from '../../lib/useScrollHighlight';
+import { fireAndForget } from '../../lib/fireAndForget';
 import type { Container, Label, Project } from '../../db/schema';
 import { Badge } from '../ui/badge';
 import { Checkbox } from '../ui/checkbox';
@@ -39,7 +50,7 @@ export function AllContainersView({ highlight }: { highlight?: HighlightRequest 
 
   const filteredContainers = useMemo(() => {
     return (allContainers ?? []).filter((c) => {
-      if (showArchived) return true;
+      if (showArchived) return !isContainerVisible(c);
       return isContainerVisible(c);
     });
   }, [allContainers, showArchived]);
@@ -58,6 +69,35 @@ export function AllContainersView({ highlight }: { highlight?: HighlightRequest 
       }),
     [filteredContainers, projectById],
   );
+
+  const [order, setOrder] = useState<string[]>([]);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor),
+  );
+  const orderedIds = order.length === sorted.length ? order : sorted.map((c) => c.id);
+  const display = orderedIds
+    .map((id) => sorted.find((c) => c.id === id))
+    .filter((c): c is Container => Boolean(c));
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const activeContainer = containerById.get(String(active.id));
+    const overContainer = containerById.get(String(over.id));
+    // Container order is scoped per project, so only allow reordering within the same project group.
+    if (!activeContainer || !overContainer || activeContainer.projectId !== overContainer.projectId) return;
+    const base = order.length === sorted.length ? order : sorted.map((c) => c.id);
+    const oldIndex = base.indexOf(String(active.id));
+    const newIndex = base.indexOf(String(over.id));
+    if (oldIndex < 0 || newIndex < 0) return;
+    const next = arrayMove(base, oldIndex, newIndex);
+    setOrder(next);
+    const projectContainerIds = next.filter(
+      (id) => containerById.get(id)?.projectId === activeContainer.projectId,
+    );
+    fireAndForget(reorderContainers(activeContainer.projectId, projectContainerIds));
+  }
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -80,28 +120,32 @@ export function AllContainersView({ highlight }: { highlight?: HighlightRequest 
           <span>Show archived</span>
         </label>
       </div>
-      <ul className="flex flex-col gap-1.5">
-        {sorted.map((container) => (
-          <ContainerRow
-            key={container.id}
-            container={container}
-            labelsById={labelsById}
-            projectById={projectById}
-            containerById={containerById}
-            taskCount={countByContainer.get(container.id) ?? 0}
-            highlighted={highlighted === `container-${container.id}`}
-          >
-            {projectById.get(container.projectId)?.name && (
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {projectById.get(container.projectId)!.name}
-              </span>
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <SortableContext items={orderedIds} strategy={verticalListSortingStrategy}>
+          <ul className="flex flex-col gap-1.5">
+            {display.map((container) => (
+              <ContainerRow
+                key={container.id}
+                container={container}
+                labelsById={labelsById}
+                projectById={projectById}
+                containerById={containerById}
+                taskCount={countByContainer.get(container.id) ?? 0}
+                highlighted={highlighted === `container-${container.id}`}
+              >
+                {projectById.get(container.projectId)?.name && (
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {projectById.get(container.projectId)!.name}
+                  </span>
+                )}
+              </ContainerRow>
+            ))}
+            {sorted.length === 0 && (
+              <li className="py-10 text-center text-sm text-muted-foreground">No containers yet.</li>
             )}
-          </ContainerRow>
-        ))}
-        {sorted.length === 0 && (
-          <li className="py-10 text-center text-sm text-muted-foreground">No containers yet.</li>
-        )}
-      </ul>
+          </ul>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 }
@@ -125,17 +169,37 @@ function ContainerRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const { setNodeRef, setActivatorNodeRef, listeners, attributes, transform, isDragging } = useSortable({
+    id: container.id,
+  });
 
   return (
     <>
       <li
+        ref={setNodeRef}
         id={`container-${container.id}`}
+        data-dnd-draggable
         onDoubleClick={() => setEditing(true)}
-        className={`flex flex-col gap-2 rounded-xl border border-border/70 bg-card px-3 py-2.5 shadow-sm ${
-          highlighted ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
-        }`}
+        style={{
+          transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+          transition: isDragging ? 'none' : undefined,
+        }}
+        className={`group flex flex-col gap-2 rounded-xl border border-border/70 bg-card px-3 py-2.5 shadow-sm ${
+          isDragging ? 'opacity-50' : ''
+        } ${highlighted ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
       >
         <div className="flex items-center gap-2">
+          <button
+            ref={setActivatorNodeRef}
+            aria-label={`Drag ${container.name}`}
+            className="shrink-0 cursor-grab touch-none text-muted-foreground/60 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:text-muted-foreground active:cursor-grabbing"
+            {...listeners}
+            {...attributes}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
           <button
             aria-label={expanded ? `Collapse ${container.name}` : `Expand ${container.name}`}
             aria-expanded={expanded}

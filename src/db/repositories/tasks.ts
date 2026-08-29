@@ -17,6 +17,7 @@ export async function createTask(input: {
   containerId: string;
 }): Promise<Task> {
   const count = await db.tasks.where('containerId').equals(input.containerId).count();
+  const globalCount = await db.tasks.count();
   const task: Task = {
     id: crypto.randomUUID(),
     title: input.title,
@@ -25,6 +26,7 @@ export async function createTask(input: {
     projectId: input.projectId,
     containerId: input.containerId,
     order: count,
+    globalOrder: globalCount,
     completed: false,
     completedDate: null,
     archived: false,
@@ -37,6 +39,12 @@ export async function createTask(input: {
 export async function reorderTasks(containerId: string, orderedIds: string[]): Promise<void> {
   await db.transaction('rw', db.tasks, async () => {
     await Promise.all(orderedIds.map((id, index) => db.tasks.update(id, { order: index })));
+  });
+}
+
+export async function reorderTasksGlobally(orderedIds: string[]): Promise<void> {
+  await db.transaction('rw', db.tasks, async () => {
+    await Promise.all(orderedIds.map((id, index) => db.tasks.update(id, { globalOrder: index })));
   });
 }
 

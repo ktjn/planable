@@ -38,6 +38,7 @@ export async function autoHandleClosingWeek(weekId: string): Promise<void> {
         const template = templatesByTask.get(task.id);
         if (template) {
           const count = await db.tasks.where('containerId').equals(template.containerId).count();
+          const globalCount = await db.tasks.count();
           await db.tasks.add({
             id: crypto.randomUUID(),
             title: template.title,
@@ -46,6 +47,7 @@ export async function autoHandleClosingWeek(weekId: string): Promise<void> {
             projectId: template.projectId,
             containerId: template.containerId,
             order: count,
+            globalOrder: globalCount,
             completed: false,
             completedDate: null,
             archived: false,
