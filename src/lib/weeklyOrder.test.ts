@@ -11,6 +11,7 @@ function task(id: string, overrides: Partial<Task> = {}): Task {
     projectId: 'p',
     containerId: 'c',
     order: 0,
+    globalOrder: 0,
     completed: false,
     completedDate: null,
     archived: false,

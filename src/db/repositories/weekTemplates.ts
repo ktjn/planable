@@ -47,6 +47,7 @@ export async function spawnWeekTemplate(
 ): Promise<void> {
   const targetContainer = containerId ?? template.containerId;
   const count = await db.tasks.where('containerId').equals(targetContainer).count();
+  const globalCount = await db.tasks.count();
   await db.tasks.add({
     id: crypto.randomUUID(),
     title: template.title,
@@ -55,6 +56,7 @@ export async function spawnWeekTemplate(
     projectId: projectId ?? template.projectId,
     containerId: targetContainer,
     order: count,
+    globalOrder: globalCount,
     completed: false,
     completedDate: null,
     archived: false,

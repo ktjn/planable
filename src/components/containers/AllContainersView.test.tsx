@@ -29,6 +29,7 @@ describe('AllContainersView', () => {
     const checkbox = screen.getByLabelText('Show archived containers');
     await userEvent.click(checkbox);
     expect(await screen.findByText('Hidden')).toBeInTheDocument();
+    expect(screen.queryByText('Backlog')).not.toBeInTheDocument();
   });
 
   it('shows labels on a container row', async () => {

@@ -45,6 +45,8 @@ export interface Task {
   projectId: string;
   containerId: string;
   order: number;
+  /** Manual sort position in the All Tasks view, independent of `order` (which is per-container). */
+  globalOrder: number;
   completed: boolean;
   completedDate: number | null;
   archived: boolean;

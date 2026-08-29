@@ -59,7 +59,7 @@ describe('AllTasksView', () => {
     expect(taskElements[1]).toHaveTextContent('Done Task A');
   });
 
-  it('hides archived tasks by default and shows them when show archived is checked', async () => {
+  it('hides archived tasks by default and shows only archived when show archived is checked', async () => {
     const project = await createProject('Gamma');
     const container = await createContainer(project.id, 'GammaContainer');
     const activeTask = await createTask({
@@ -83,6 +83,7 @@ describe('AllTasksView', () => {
     await userEvent.click(checkbox);
 
     expect(await screen.findByText('Archived Gamma')).toBeInTheDocument();
+    expect(screen.queryByText('Active Gamma')).not.toBeInTheDocument();
   });
 
   it('toggles a task completed via its checkbox', async () => {

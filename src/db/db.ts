@@ -83,6 +83,24 @@ export class PlanableDB extends Dexie {
         }
       });
     });
+    // v7: adds `globalOrder` so tasks can be manually reordered in the All Tasks
+    // view independently of their per-container `order`.
+    this.version(7).stores({
+      projects: 'id, order',
+      containers: 'id, projectId, order, weekly.weekId',
+      tasks: 'id, projectId, containerId, weekly.weekId',
+      labels: 'id, name',
+      weekTemplates: 'id, projectId, taskId',
+      settings: '&key',
+    }).upgrade(async (tx) => {
+      let next = 0;
+      await tx.table('tasks').toCollection().modify((task) => {
+        if (task.globalOrder === undefined) {
+          task.globalOrder = next;
+        }
+        next += 1;
+      });
+    });
     this.on('populate', () => {
       this.projects.add(INBOX_PROJECT);
       this.containers.add(INBOX_CONTAINER);

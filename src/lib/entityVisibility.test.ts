@@ -28,6 +28,7 @@ function task(over: Partial<Task> = {}): Task {
     projectId: 'p',
     containerId: 'c',
     order: 0,
+    globalOrder: 0,
     completed: false,
     completedDate: null,
     archived: false,
