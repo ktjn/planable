@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -13,9 +12,9 @@ permissions:
   id-token: write
 
 # Scope the concurrency group per ref so a push on one branch only cancels
-# in-progress runs of *that same* branch. A single shared group cancelled
-# runs from other branches (e.g. dependabot PRs), leaving their checks
-# perpetually CANCELLED and the PR status UNSTABLE.
+# in-progress runs of *that same* branch. (This workflow only ever runs for
+# `main` or manual dispatches, but keeping the group scoped avoids any
+# cross-branch cancellation if that changes.)
 concurrency:
   group: 'pages-${{ github.ref }}'
   cancel-in-progress: true
@@ -58,7 +57,6 @@ jobs:
           if-no-files-found: ignore
 
   deploy:
-    if: github.event_name != 'pull_request'
     needs: [build, e2e]
     runs-on: ubuntu-latest
     environment:
@@ -68,14 +66,13 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@v5
 
-  # `deploy` needs [build, e2e] and only runs on non-PR events, so GitHub
-  # Actions silently *skips* it (not fails it) whenever build or e2e fails on
-  # a push to main — the site quietly stops updating with no visible signal.
-  # This job can only run when deploy was skipped due to a real failure (not
-  # because this was a PR run), and files/updates a tracking issue so that's
-  # never silent.
+  # `deploy` needs [build, e2e], so GitHub Actions silently *skips* it (not
+  # fails it) whenever build or e2e fails on a push to main — the site
+  # quietly stops updating with no visible signal. This job can only run
+  # when deploy was skipped due to a real failure, and files/updates a
+  # tracking issue so that's never silent.
   notify-deploy-failure:
-    if: failure() && github.event_name != 'pull_request'
+    if: failure()
     needs: [build, e2e]
     runs-on: ubuntu-latest
     permissions:
@@ -118,7 +115,7 @@ jobs:
   # Auto-resolves the tracking issue once a subsequent push actually deploys.
   resolve-deploy-issue:
     needs: [deploy]
-    if: success() && github.event_name != 'pull_request'
+    if: success()
     runs-on: ubuntu-latest
     permissions:
       issues: write
