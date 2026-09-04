@@ -65,32 +65,31 @@ Visit **[https://ktjn.github.io/planable/](https://ktjn.github.io/planable/)** i
 ## Development
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) (v22 or later recommended)
-- `npm`
+- [Bun](https://bun.sh/) (v1.3 or later recommended)
 
 ### Setup & Commands
 
 ```bash
 # Install dependencies
-npm install
+bun install
 
 # Start development server
-npm run dev
+bun run dev
 
 # Run unit and integration tests (Vitest)
-npm test
+bun run test
 
 # Run tests in watch mode
-npm run test:watch
+bun run test:watch
 
 # Run end-to-end tests (Playwright)
-npm run test:e2e
+bun run test:e2e
 
 # Standard production build (dist/)
-npm run build
+bun run build
 
 # Standalone single-file HTML build (dist/index.html)
-npm run build:single
+bun run build:single
 ```
 
 ---
