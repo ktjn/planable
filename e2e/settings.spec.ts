@@ -52,6 +52,53 @@ test.describe('Settings', () => {
     expect(data.projects.some((p: { name: string }) => p.name === 'ExportTest')).toBe(true);
   });
 
+  test('exports Markdown containing the data', async ({ page }) => {
+    await gotoApp(page);
+    await createProject(page, 'MdExportTest');
+    await openSettings(page);
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: 'Export Markdown' }).click(),
+    ]);
+    expect(download.suggestedFilename()).toBe('planable-export.md');
+
+    const text = readFileSync((await download.path())!, 'utf8');
+    expect(text.startsWith('---\nplanable: 1\n')).toBe(true);
+    expect(text).toContain('# MdExportTest');
+  });
+
+  test('imports Markdown additively and shows the new project, tasks, and warnings', async ({ page }) => {
+    await gotoApp(page);
+    await createProject(page, 'KeepMe');
+    await openSettings(page);
+
+    const markdown = [
+      '# Imported Plan',
+      '## Backlog',
+      '- [ ] First imported task',
+      '  - labels: Imported',
+      '- [x] Second imported task',
+      '  - week: not-a-week',
+    ].join('\n');
+
+    page.on('dialog', (dialog) => dialog.accept());
+    await page
+      .locator('input[aria-label="Import Markdown"]')
+      .setInputFiles({ name: 'plan.md', mimeType: 'text/markdown', buffer: Buffer.from(markdown) });
+
+    await expect(page.getByText('Imported 1 project, 1 container, 2 tasks, 1 label.')).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Import warnings' })).toContainText('invalid week');
+
+    await page.getByRole('button', { name: 'Imported Plan', exact: true }).click();
+    await page.getByRole('heading', { name: 'Imported Plan', exact: true }).waitFor();
+    await expect(page.getByRole('heading', { name: 'Backlog', exact: true })).toBeVisible();
+    await expect(page.getByText('First imported task')).toBeVisible();
+    await expect(page.getByText('Second imported task')).toBeVisible();
+
+    await expect(page.getByRole('button', { name: 'KeepMe', exact: true })).toBeVisible();
+  });
+
   test('imports a backup and shows the restored data', async ({ page }) => {
     await gotoApp(page);
     await openSettings(page);

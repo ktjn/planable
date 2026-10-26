@@ -23,6 +23,7 @@ and spreadsheets with a single, fast, local planning workspace.
 - **Keyboard & CLI-Driven** — Interactive console drawer (`Ctrl+K`) supporting item queries, command palette actions (`> reset`, `> sample data`), tab autocomplete, and transactional SQL sandbox (`SELECT`, `UPDATE`, `DELETE`, `BEGIN`/`COMMIT`).
 - **Drag-and-Drop Planning** — Intuitive drag-and-drop boards powered by `@dnd-kit` for tasks, containers, weekdays, and kanban columns.
 - **Data Portability** — Export and import full JSON backups anytime from **Settings → Data**, or click **Download app** to save an offline single-file copy directly from the browser.
+- **Markdown Import & Export** — Export your plan as readable Markdown, or write tasks in any editor and import them. Importing Markdown adds to your data and never overwrites it. See the [Markdown format guide](docs/markdown-format.md).
 
 ---
 

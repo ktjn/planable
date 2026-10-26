@@ -52,8 +52,20 @@ export function Settings() {
             <p className="mb-3 text-sm text-muted-foreground">{getWeekLabel(activeWeek)}</p>
             <Separator className="my-3" />
             <h3 className="text-sm font-medium">Backup & restore</h3>
+            <p className="mb-1 text-sm text-muted-foreground">
+              JSON is a full backup of projects, containers, tasks, labels, and weekly templates.
+              Importing JSON replaces all data.
+            </p>
             <p className="mb-3 text-sm text-muted-foreground">
-              Export a full JSON backup of projects, containers, tasks, labels, and weekly templates.
+              Markdown is a readable plan you can edit. Importing Markdown adds to your data.{' '}
+              <a
+                href="https://github.com/ktjn/planable/blob/main/docs/markdown-format.md"
+                target="_blank"
+                rel="noreferrer"
+                className="underline underline-offset-2"
+              >
+                Format guide
+              </a>
             </p>
             <ImportExport />
             <Separator className="my-3" />

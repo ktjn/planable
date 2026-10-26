@@ -4,6 +4,22 @@ Record notable design and product decisions here. Each entry should state the
 decision, the date, and the rationale so future work does not re-litigate them
 unnecessarily.
 
+## 2026-10-26 — Markdown import and export
+
+Format reference: [`markdown-format.md`](markdown-format.md).
+
+| # | Decision | Rationale |
+|---|----------|-----------|
+| 1 | Add Markdown import/export **alongside** the JSON backup, as separate buttons in Settings → Data. JSON stays the full-fidelity backup. | Markdown is for reading, editing, and bulk authoring (including LLM-generated plans). It cannot be lossless without embedding ids and settings, which would make it unreadable. |
+| 2 | Markdown import is **additive**: it never clears data. Projects, containers, and labels are matched by name (case-insensitive) and reused; tasks are always created with new ids. | Hand-written or partial files must not wipe a workspace, and a format without ids cannot do a safe replace or an in-place update. Reusing by name lets new tasks land in existing containers without duplicating structure. Re-importing a file duplicates its tasks; this is documented rather than prevented. |
+| 3 | Metadata on a heading that matches an existing project or container is ignored. | Applying it would silently change kanban placement or archive state of existing data. Additive means existing state wins. |
+| 4 | Structure: `#` project, `##` container, `- [ ]` / `- [x]` task. Task metadata is indented `key: value` bullets directly under the task line; the description is indented text after a blank line. Container metadata bullets sit directly under the `##` heading. | Renders as a normal outline in any Markdown viewer, round-trips without escaping descriptions, and a blank line gives a deterministic boundary between metadata and free text. Descriptions are indented so headings and lists inside them cannot be confused with structure. |
+| 5 | Label colors live in optional YAML-style front matter, one JSON object per line. Names are referenced from tasks and containers. Unknown names create labels with the default color. | Keeps the body free of color noise and label definitions out of the heading namespace (a project named "Labels" cannot collide). Hand-authored files need no front matter. |
+| 6 | Lenient on input, strict on output. Bare bullets are tasks, tasks before any heading go to the Inbox, tasks under a project without a container go to a `General` container, and bad values produce warnings instead of failing the import. Only a file with no projects, tasks, or labels is rejected. | A pasted checklist should just work. Partial failure with a visible warning list beats rejecting a whole file for one typo. |
+| 7 | Not preserved: ids, settings, `globalOrder`, and exact weekly column order. Imported tasks go last in the All Tasks order; weekly order follows file order. `repeat: weekly` regenerates the week template. | These are internal or derived values. Preserving them would require ids in the file. |
+| 8 | Label colors from files are validated as `#rrggbb`; anything else falls back to the default. | Colors are applied as inline styles, so untrusted file values are constrained to a safe shape. |
+| 9 | The parser and serializer are pure (`src/lib/markdownFormat.ts`); database writes live in `importMarkdown` in `src/lib/importExport.ts` and run in one transaction. The full example in the format guide is parsed by a test. | Pure functions are unit-testable without IndexedDB, a single transaction avoids partial imports, and testing the documented example keeps the docs from drifting from the parser. |
+
 ## 2026-08-29 — Split Pages workflow into CI + Deploy workflows
 
 | # | Decision | Rationale |
