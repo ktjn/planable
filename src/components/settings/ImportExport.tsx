@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Download, FileText, Upload } from 'lucide-react';
+import { ClipboardCopy, Download, FileText, Upload } from 'lucide-react';
 import {
   exportData,
   exportMarkdown,
@@ -8,6 +8,7 @@ import {
   type MarkdownImportResult,
   type PlanableExport,
 } from '../../lib/importExport';
+import { LLM_PROMPT } from '../../lib/llmPrompt';
 import { Button } from '../../components/ui/button';
 
 const MAX_SHOWN_WARNINGS = 5;
@@ -57,6 +58,16 @@ export function ImportExport() {
   async function handleExportMarkdown() {
     const text = await exportMarkdown();
     downloadBlob(new Blob([text], { type: 'text/markdown' }), 'planable-export.md');
+  }
+
+  async function handleCopyPrompt() {
+    resetFeedback();
+    try {
+      await navigator.clipboard.writeText(LLM_PROMPT);
+      setNotice('Prompt copied. Paste it into an LLM, followed by your notes.');
+    } catch {
+      setError('Could not copy to the clipboard. Copy the prompt from the format guide instead.');
+    }
   }
 
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
@@ -125,7 +136,7 @@ export function ImportExport() {
           className="hidden"
         />
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button variant="secondary" onClick={handleExportMarkdown}>
           <FileText />
           Export Markdown
@@ -133,6 +144,10 @@ export function ImportExport() {
         <Button variant="outline" onClick={() => markdownInputRef.current?.click()}>
           <Upload />
           Import Markdown
+        </Button>
+        <Button variant="ghost" onClick={handleCopyPrompt}>
+          <ClipboardCopy />
+          Copy LLM prompt
         </Button>
         <input
           ref={markdownInputRef}

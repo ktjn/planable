@@ -7,6 +7,8 @@ LLM), and move plans between browsers.
 - **Export**: Settings → Data → **Export Markdown** downloads `planable-export.md`.
 - **Import**: Settings → Data → **Import Markdown** adds the file's contents to your data.
 
+To generate this format from notes with an LLM, see [Convert notes with an LLM](convert-notes-with-llm.md).
+
 NOTE: Markdown is not a full backup. Use the JSON **Export** / **Import** for backups. See
 [Markdown vs JSON](#markdown-vs-json).
 

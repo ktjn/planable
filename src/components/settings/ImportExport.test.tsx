@@ -10,6 +10,7 @@ vi.mock('../../db/db', async () => {
 import { ImportExport } from './ImportExport';
 import { db } from '../../db/db';
 import { exportData } from '../../lib/importExport';
+import { LLM_PROMPT } from '../../lib/llmPrompt';
 import { createProject } from '../../db/repositories/projects';
 import { createContainer } from '../../db/repositories/containers';
 import { createTask } from '../../db/repositories/tasks';
@@ -172,5 +173,35 @@ describe('ImportExport markdown', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/No projects/);
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(input.value).toBe('');
+  });
+});
+
+describe('ImportExport LLM prompt', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'clipboard');
+  });
+
+  function stubClipboard(writeText: (text: string) => Promise<void>) {
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+  }
+
+  it('copies the full prompt to the clipboard and confirms', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    stubClipboard(writeText);
+
+    render(<ImportExport />);
+    await userEvent.click(screen.getByText('Copy LLM prompt'));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(LLM_PROMPT));
+    expect(await screen.findByRole('status')).toHaveTextContent('Prompt copied');
+  });
+
+  it('shows an inline error when the clipboard is unavailable', async () => {
+    stubClipboard(() => Promise.reject(new Error('denied')));
+
+    render(<ImportExport />);
+    await userEvent.click(screen.getByText('Copy LLM prompt'));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not copy');
   });
 });
