@@ -15,7 +15,7 @@ test.describe('Interactions', () => {
   });
 
   test('double-click task body opens editor', async ({ page }) => {
-    const unplanned = column(page, 'Unplanned');
+    const unplanned = column(page, 'Weekly tasks');
     await quickAdd(unplanned, 'Test Task');
 
     await taskCard(unplanned, 'Test Task').getByText('Test Task').dblclick();
@@ -26,7 +26,7 @@ test.describe('Interactions', () => {
   });
 
   test('double-click drag handle does not open editor', async ({ page }) => {
-    const unplanned = column(page, 'Unplanned');
+    const unplanned = column(page, 'Weekly tasks');
     await quickAdd(unplanned, 'Drag Task');
 
     const handle = dragHandle(taskCard(unplanned, 'Drag Task'));
@@ -37,7 +37,7 @@ test.describe('Interactions', () => {
   });
 
   test('Weekly: reorder tasks within a day via drag', async ({ page }) => {
-    const unplanned = column(page, 'Unplanned');
+    const unplanned = column(page, 'Weekly tasks');
     await quickAdd(unplanned, 'Task 1');
     await quickAdd(unplanned, 'Task 2');
 
@@ -56,7 +56,7 @@ test.describe('Interactions', () => {
     // Persist across reload regardless of the final order.
     await page.reload();
     await page.getByRole('heading', { name: 'Weekly Plan' }).waitFor();
-    const reloaded = column(page, 'Unplanned').locator('[data-dnd-draggable]:not([data-dnd-droppable])');
+    const reloaded = column(page, 'Weekly tasks').locator('[data-dnd-draggable]:not([data-dnd-droppable])');
     await expect(reloaded).toHaveCount(2);
   });
 

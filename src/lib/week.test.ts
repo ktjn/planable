@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { getCurrentWeekId, getNextWeekId, getWeekLabel, parseWeekId } from './week';
+import {
+  WEEK_COLUMN_LABEL,
+  getCurrentWeekId,
+  getNextWeekId,
+  getWeekLabel,
+  parseWeekId,
+  weeklyBadgeText,
+} from './week';
 
 describe('getCurrentWeekId', () => {
   it('returns an ISO week id for a known date', () => {
@@ -46,5 +53,20 @@ describe('getNextWeekId', () => {
 describe('getWeekLabel', () => {
   it('formats a human label', () => {
     expect(getWeekLabel('2026-W32')).toBe('2026, week 32');
+  });
+});
+
+describe('WEEK_COLUMN_LABEL', () => {
+  it('names the stored Unplanned day "Weekly tasks" and leaves weekdays as they are', () => {
+    expect(WEEK_COLUMN_LABEL.Unplanned).toBe('Weekly tasks');
+    expect(WEEK_COLUMN_LABEL.Tue).toBe('Tue');
+  });
+});
+
+describe('weeklyBadgeText', () => {
+  it('describes repeating, day-less, and day-specific tasks', () => {
+    expect(weeklyBadgeText({ repeatWeekly: true, day: 'Mon' })).toBe('Repeats weekly');
+    expect(weeklyBadgeText({ repeatWeekly: false, day: 'Unplanned' })).toBe('Week: any day');
+    expect(weeklyBadgeText({ repeatWeekly: false, day: 'Tue' })).toBe('Week: Tue');
   });
 });

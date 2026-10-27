@@ -4,6 +4,7 @@ import { GripVertical, CalendarPlus } from 'lucide-react';
 import { setTaskCompleted } from '../../db/repositories/tasks';
 import { addToWeek } from '../../db/repositories/taskMembership';
 import { fireAndForget } from '../../lib/fireAndForget';
+import { weeklyBadgeText } from '../../lib/week';
 import type { Task, Label, Container, Project } from '../../db/schema';
 import { Checkbox } from '../../components/ui/checkbox';
 import { Badge } from '../../components/ui/badge';
@@ -135,7 +136,7 @@ export function TaskCard({
               {extra}
               {showWeeklyBadge && task.weekly && (
                 <Badge variant="secondary" className="shrink-0">
-                  {task.weekly.repeatWeekly ? 'Repeats weekly' : `Week: ${task.weekly.day}`}
+                  {weeklyBadgeText(task.weekly)}
                 </Badge>
               )}
             </div>

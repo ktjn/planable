@@ -1,6 +1,7 @@
 import type { Container, KanbanStatus, Label, Project, Task, WeekDay } from '../db/schema';
 import type { ActiveView } from '../components/layout/NavTabs';
 import type { ConsoleEntityKind, ItemQuery, QueryFilter, QueryTerm } from './consoleQuery';
+import { weeklyBadgeText } from './week';
 
 export interface ConsoleItemResult {
   key: string;
@@ -54,6 +55,7 @@ const DAY_ALIASES: Record<string, WeekDay> = {
   unplanned: 'Unplanned',
   none: 'Unplanned',
   backlog: 'Unplanned',
+  weekly: 'Unplanned',
 };
 
 export const STATUS_ALIASES: Record<string, KanbanStatus> = {
@@ -179,7 +181,7 @@ function taskResult(task: Task, containerById: Map<string, Container>, projectBy
   const badges: string[] = [];
   if (task.completed) badges.push('Done');
   if (task.archived) badges.push('Archived');
-  if (task.weekly) badges.push(task.weekly.repeatWeekly ? 'Repeats weekly' : `Week: ${task.weekly.day}`);
+  if (task.weekly) badges.push(weeklyBadgeText(task.weekly));
   return {
     key: `task-${task.id}`,
     id: task.id,

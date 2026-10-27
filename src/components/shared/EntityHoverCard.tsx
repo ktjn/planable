@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { PreviewCard } from '../ui/preview-card';
 import type { Task, Container, Project, Label } from '../../db/schema';
 import { Badge } from '../ui/badge';
+import { weeklyBadgeText } from '../../lib/week';
 import { EntityLabels } from './EntityLabels';
 
 export function EntityHoverCard({
@@ -96,7 +97,7 @@ export function TaskHoverCardContent({
       <EntityLabels labelIds={task.labels} labelsById={labelsById} />
       {task.weekly && (
         <Badge variant="secondary" className="w-fit">
-          {task.weekly.repeatWeekly ? 'Repeats weekly' : `Week: ${task.weekly.day}`}
+          {weeklyBadgeText(task.weekly)}
         </Badge>
       )}
       {container?.kanban && (

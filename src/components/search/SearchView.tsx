@@ -5,6 +5,7 @@ import { db } from '../../db/db';
 import type { Task, Container as ContainerEntity, Label } from '../../db/schema';
 import { listLabels } from '../../db/repositories/labels';
 import { isTaskEffectivelyArchived } from '../../lib/entityVisibility';
+import { weeklyBadgeText } from '../../lib/week';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { EntityLabels } from '../shared/EntityLabels';
@@ -218,7 +219,7 @@ function ResultRow({
         {projectName && <span className="shrink-0 text-xs text-muted-foreground">{projectName}</span>}
         {(entity as Task).weekly && (
           <Badge variant="secondary" className="hidden sm:inline-flex">
-            {(entity as Task).weekly!.repeatWeekly ? 'Repeats weekly' : `Week: ${(entity as Task).weekly!.day}`}
+            {weeklyBadgeText((entity as Task).weekly!)}
           </Badge>
         )}
       </button>

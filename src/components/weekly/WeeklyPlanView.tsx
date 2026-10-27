@@ -18,7 +18,12 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState } from 'react';
 import { db } from '../../db/db';
 import { advanceActiveWeek } from '../../lib/activeWeek';
-import { getCurrentWeekId, getNextWeekId, getWeekLabel } from '../../lib/week';
+import {
+  WEEK_COLUMN_LABEL,
+  getCurrentWeekId,
+  getNextWeekId,
+  getWeekLabel,
+} from '../../lib/week';
 import { SETTING_ACTIVE_WEEK } from '../../db/repositories/settings';
 import { addToWeek, setWeeklyDay, reorderWeeklyTasks } from '../../db/repositories/taskMembership';
 import { listLabels } from '../../db/repositories/labels';
@@ -76,14 +81,16 @@ function WeeklyDayColumn({
     <section
       ref={setNodeRef}
       data-dnd-droppable
-      className="group/column flex min-w-44 flex-1 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm transition-[border-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none"
+      className={`group/column flex shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm transition-[border-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none ${
+        day === 'Unplanned' ? 'min-w-60 flex-[2]' : 'min-w-36 flex-1'
+      }`}
     >
       <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2.5">
         <div className="flex items-center gap-1.5">
           <span className={DAY_ACCENT[day]}>
             <span className="block size-2 shrink-0 rounded-full bg-current" />
           </span>
-          <h3 className="text-sm font-semibold">{day}</h3>
+          <h3 className="text-sm font-semibold">{WEEK_COLUMN_LABEL[day]}</h3>
         </div>
         <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs text-muted-foreground tabular-nums">
           {entries.length}
