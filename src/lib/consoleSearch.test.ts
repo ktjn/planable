@@ -107,6 +107,7 @@ describe('searchItems', () => {
   it('filters by day, accepting common aliases', () => {
     expect(searchItems(parse('day:tuesday'), ctx).map((r) => r.key)).toEqual(['task-t1']);
     expect(searchItems(parse('day:tue'), ctx).map((r) => r.key)).toEqual(['task-t1']);
+    expect(searchItems(parse('day:weekly'), ctx)).toEqual([]);
   });
 
   it('filters by project name', () => {

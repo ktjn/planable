@@ -23,11 +23,11 @@ test.describe('Weekly Plan', () => {
     await expect(dialog).toContainText('Add task to this week');
     await dialog.getByRole('button', { name: 'Inbox task' }).click();
 
-    await expect(taskCard(column(page, 'Unplanned'), 'Inbox task')).toBeVisible();
+    await expect(taskCard(column(page, 'Weekly tasks'), 'Inbox task')).toBeVisible();
   });
 
   test('toggle a task completed from its card', async ({ page }) => {
-    const unplanned = column(page, 'Unplanned');
+    const unplanned = column(page, 'Weekly tasks');
     await quickAdd(unplanned, 'Finish README');
 
     const checkbox = taskCard(unplanned, 'Finish README').getByRole('checkbox');
@@ -39,7 +39,7 @@ test.describe('Weekly Plan', () => {
   });
 
   test('mark a task to repeat every week', async ({ page }) => {
-    const unplanned = column(page, 'Unplanned');
+    const unplanned = column(page, 'Weekly tasks');
     await quickAdd(unplanned, 'Weekly sync');
 
     await taskCard(unplanned, 'Weekly sync').getByText('Weekly sync').dblclick();
@@ -54,7 +54,7 @@ test.describe('Weekly Plan', () => {
   });
 
   test('a repeat-every-week task rolls into the next week automatically', async ({ page }) => {
-    const unplanned = column(page, 'Unplanned');
+    const unplanned = column(page, 'Weekly tasks');
     await quickAdd(unplanned, 'Standup');
 
     // Mark it as repeating so the rollover keeps it.
@@ -71,12 +71,12 @@ test.describe('Weekly Plan', () => {
 
     await rollover.getByRole('button', { name: 'Start next week' }).click();
 
-    // The fresh instance shows up in the (new) week's Unplanned column.
-    await expect(taskCard(column(page, 'Unplanned'), 'Standup')).toBeVisible();
+    // The fresh instance shows up in the (new) week's Weekly tasks column.
+    await expect(taskCard(column(page, 'Weekly tasks'), 'Standup')).toBeVisible();
   });
 
   test('rollover lists unresolved tasks and blocks advancing', async ({ page }) => {
-    const unplanned = column(page, 'Unplanned');
+    const unplanned = column(page, 'Weekly tasks');
     await quickAdd(unplanned, 'Task A');
 
     await page.getByRole('button', { name: /Start new week/ }).click();

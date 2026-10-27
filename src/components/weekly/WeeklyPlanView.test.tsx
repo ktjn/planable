@@ -75,6 +75,21 @@ describe('WeeklyPlanView', () => {
     expect(rows[1]).toHaveTextContent('Done');
   });
 
+  it('names the day-less column "Weekly tasks" and puts it first', async () => {
+    const task = await createTask({ title: 'Any day', projectId: INBOX_PROJECT_ID, containerId: INBOX_CONTAINER_ID });
+    await addToWeek(task.id, getCurrentWeekId());
+
+    render(<WeeklyPlanView />);
+
+    const tasksBoard = screen.getByText('Tasks').closest('section')!;
+    const headings = within(tasksBoard).getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
+    expect(headings.slice(1, 3)).toEqual(['Weekly tasks', 'Mon']);
+    expect(screen.queryByText('Unplanned')).not.toBeInTheDocument();
+    expect(
+      await within(screen.getByText('Weekly tasks').closest('section')!).findByText('Any day'),
+    ).toBeInTheDocument();
+  });
+
   it('shows only a Tasks board, with no Containers board', async () => {
     render(<WeeklyPlanView />);
     expect(await screen.findByText('Tasks')).toBeInTheDocument();

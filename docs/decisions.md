@@ -4,6 +4,15 @@ Record notable design and product decisions here. Each entry should state the
 decision, the date, and the rationale so future work does not re-litigate them
 unnecessarily.
 
+## 2026-10-27 — Weekly plan: "Weekly tasks" column and proportions
+
+| # | Decision | Rationale |
+|---|----------|-----------|
+| 1 | Rename the first Weekly Plan column from "Unplanned" to "Weekly tasks" in the UI only. The stored `WeekDay` value stays `Unplanned`. The label lives in `WEEK_COLUMN_LABEL` (`src/lib/week.ts`). | Most work is tied to the week, not to a day, so "Unplanned" read as leftover. Changing the stored value would need a Dexie migration and would break JSON backups, Markdown files (`week: … Unplanned`), and console queries (`day:unplanned`) for a cosmetic gain. |
+| 2 | Size the columns by expected load: Weekly tasks is `flex-[2]` (min 15rem); each weekday is `flex-1` (min 9rem). | Weekday columns usually hold few tasks and the Weekly tasks column holds many, so it gets about twice the width. Narrow screens still scroll horizontally, as before. |
+| 3 | The task badge for a day-less task reads "Week: any day" (was "Week: Unplanned"). Badge text comes from one helper, `weeklyBadgeText`, used by the task card, hover card, search view, and console. | "Unplanned" no longer appears anywhere in the UI, and four copies of the same string were a drift risk. |
+| 4 | The console `day:` filter also accepts `weekly` (alongside `unplanned`, `none`, `backlog`). | Matches the new column name; existing aliases keep working. |
+
 ## 2026-10-26 — Markdown import and export
 
 Format reference: [`markdown-format.md`](markdown-format.md).

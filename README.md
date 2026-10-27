@@ -29,7 +29,7 @@ and spreadsheets with a single, fast, local planning workspace.
 
 ## Views
 
-- **Weekly Plan** — Two independent boards plan each week: **Containers** and **Tasks**. Drag items from *Unplanned* into Monday–Friday columns. Containers and child tasks are scheduled independently. Planning is deliberate and manual: rollover prompts you to resolve every scheduled container and unfinished task when starting a new week.
+- **Weekly Plan** — Two independent boards plan each week: **Containers** and **Tasks**. Tasks tied to the week but not to a day live in the wide **Weekly tasks** column; drag them into the narrower Monday–Friday columns to schedule them. Containers and child tasks are scheduled independently. Planning is deliberate and manual: rollover prompts you to resolve every scheduled container and unfinished task when starting a new week.
 - **Kanban** — Execution board with columns for *Todo*, *Doing*, *Blocked*, and *Done*. Task-focused and independent of the weekly plan.
 - **Projects** — Dynamic project tabs organizing work into custom containers with per-container weekly scheduling actions.
 - **All Tasks & All Containers** — Global lists with instant search, label filters, and batch selection actions.

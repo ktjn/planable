@@ -1,3 +1,5 @@
+import type { WeekDay, WeeklyTaskMembership } from '../db/schema';
+
 export function getCurrentWeekId(date: Date = new Date()): string {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const dayNum = d.getUTCDay() || 7;
@@ -47,4 +49,19 @@ function isoWeeksInYear(year: number): number {
     return 53;
   }
   return 52;
+}
+
+/** Display names for the weekly-plan columns. `Unplanned` is the stored value for tasks tied to the week but not to a day. */
+export const WEEK_COLUMN_LABEL: Record<WeekDay, string> = {
+  Unplanned: 'Weekly tasks',
+  Mon: 'Mon',
+  Tue: 'Tue',
+  Wed: 'Wed',
+  Thu: 'Thu',
+  Fri: 'Fri',
+};
+
+export function weeklyBadgeText(weekly: Pick<WeeklyTaskMembership, 'repeatWeekly' | 'day'>): string {
+  if (weekly.repeatWeekly) return 'Repeats weekly';
+  return weekly.day === 'Unplanned' ? 'Week: any day' : `Week: ${weekly.day}`;
 }

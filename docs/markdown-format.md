@@ -66,7 +66,7 @@ Rules:
 | Key | Value | Notes |
 |-----|-------|-------|
 | `labels` | Comma-separated label names | See [Labels](#labels). |
-| `week` | `<ISO week> <day>`, e.g. `2026-W43 Tue` | Day is `Mon`–`Fri` or `Unplanned`. Day is optional (defaults to `Unplanned`). |
+| `week` | `<ISO week> <day>`, e.g. `2026-W43 Tue` | Day is `Mon`–`Fri` or `Unplanned` (the **Weekly tasks** column: tied to the week, not to a day). Day is optional (defaults to `Unplanned`). |
 | `repeat` | `weekly` | Repeat every week. Creates a week template. Uses the active week if `week` is missing. |
 | `completed` | ISO 8601 timestamp, e.g. `2026-10-20T09:30:00.000Z` | Only used when the checkbox is `[x]`. Defaults to the import time. |
 | `archived` | `true` / `false` | Archived tasks cannot be scheduled; `week` and `repeat` are ignored with a warning. |

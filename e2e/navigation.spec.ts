@@ -95,7 +95,7 @@ test.describe('Navigation', () => {
   });
 
   test('weekly plan renders the week columns', async ({ page }) => {
-    for (const day of ['Unplanned', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri']) {
+    for (const day of ['Weekly tasks', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri']) {
       await expect(column(page, day)).toBeVisible();
     }
   });

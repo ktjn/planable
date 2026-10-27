@@ -7,7 +7,7 @@ export async function gotoApp(page: Page): Promise<void> {
 }
 
 /**
- * A named board column. Works for the Weekly Plan (Unplanned/Mon/...) and the
+ * A named board column. Works for the Weekly Plan (Weekly tasks/Mon/...) and the
  * Kanban (Todo/Doing/Blocked/Done), which both render as `<section>` elements
  * whose header is a matching `<h3>` heading.
  */
